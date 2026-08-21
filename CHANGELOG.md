@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-08-21
+
+### Added
+
+- `LocalSubscriptionSource`, a marker interface a custom resolver declares when
+  the local subscriptions table is one of its sources. Local writes —
+  `subscribe()`, `swapPlan()`, `cancelSubscription()` — are authorised by the
+  marker rather than by the shipped local resolver's concrete class, so a
+  composite resolver (Paddle plus AppSumo-lifetime redemptions, Stripe plus
+  manually granted tenants) can serve two subscription sources in one
+  application. Covered by an end-to-end scenario test.
+
 ## [1.0.0] - 2026-08-21
 
 First release. Feature entitlements and usage quotas for Laravel SaaS

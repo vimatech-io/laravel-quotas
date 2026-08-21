@@ -359,6 +359,21 @@ final class LicenceServerResolver implements SubscriptionResolverInterface
 you already hold — it is consulted on ordinary requests and must never make a
 network call.
 
+If your resolver also reads this package's own subscriptions table — a Paddle
+resolver with an AppSumo-lifetime fallback, a Stripe resolver with manually
+granted internal tenants — declare the `LocalSubscriptionSource` marker as
+well. That is what authorises `subscribe()`, `swapPlan()` and
+`cancelSubscription()` to write the local table while your resolver is active;
+without it they throw, because a resolver reading a payment provider alone must
+not be able to hand out local subscriptions nobody pays for.
+
+```php
+final class PaddleWithSumoResolver implements LocalSubscriptionSource, SubscriptionResolverInterface
+{
+    // try Paddle first, fall back to the local table
+}
+```
+
 ## Configuration
 
 See `config/quotas.php`. The keys that matter most:

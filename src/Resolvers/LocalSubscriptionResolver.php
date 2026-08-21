@@ -6,6 +6,7 @@ namespace VimaTech\LaravelQuotas\Resolvers;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
+use VimaTech\LaravelQuotas\Contracts\LocalSubscriptionSource;
 use VimaTech\LaravelQuotas\Contracts\SubscriptionResolverInterface;
 use VimaTech\LaravelQuotas\Managers\SubscriptionManager;
 use VimaTech\LaravelQuotas\Models\Plan;
@@ -18,7 +19,7 @@ use VimaTech\LaravelQuotas\Models\Plan;
  * resolver that supports several billable types at once, since the local table
  * is polymorphic where Cashier's is not.
  */
-final class LocalSubscriptionResolver implements SubscriptionResolverInterface
+final class LocalSubscriptionResolver implements LocalSubscriptionSource, SubscriptionResolverInterface
 {
     public function __construct(
         private readonly SubscriptionManager $subscriptions,

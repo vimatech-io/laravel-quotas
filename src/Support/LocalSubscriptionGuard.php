@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace VimaTech\LaravelQuotas\Support;
 
+use VimaTech\LaravelQuotas\Contracts\LocalSubscriptionSource;
 use VimaTech\LaravelQuotas\Contracts\SubscriptionResolverInterface;
 use VimaTech\LaravelQuotas\Exceptions\LocalSubscriptionsDisabledException;
-use VimaTech\LaravelQuotas\Resolvers\LocalSubscriptionResolver;
 
 /**
  * Refuses writes to the local subscriptions table when something else owns the
@@ -24,7 +24,7 @@ final class LocalSubscriptionGuard
         // resolver itself depends on the subscription layer this guards.
         $resolver = app(SubscriptionResolverInterface::class);
 
-        if (! $resolver instanceof LocalSubscriptionResolver) {
+        if (! $resolver instanceof LocalSubscriptionSource) {
             throw LocalSubscriptionsDisabledException::forMethod($method);
         }
     }
