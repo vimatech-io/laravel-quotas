@@ -1,7 +1,7 @@
 # Laravel Quotas
 
-<!-- Restore these once the repository is public and the package is on Packagist:
 [![Tests](https://github.com/vimatech-io/laravel-quotas/actions/workflows/tests.yml/badge.svg)](https://github.com/vimatech-io/laravel-quotas/actions)
+<!-- Restore these once the package is on Packagist:
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/vimatech/laravel-quotas.svg)](https://packagist.org/packages/vimatech/laravel-quotas)
 [![License](https://img.shields.io/packagist/l/vimatech/laravel-quotas.svg)](https://packagist.org/packages/vimatech/laravel-quotas)
 -->
