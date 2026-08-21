@@ -86,6 +86,30 @@ class User extends Authenticatable
 You may also point `resolver` at your own class implementing
 `SubscriptionResolverInterface`.
 
+#### How the Cashier resolvers work — and what they never do
+
+This package **never talks to Stripe or Paddle** and needs none of their API
+keys. Verification is layered, and each layer owns its own question:
+
+1. **The provider** knows whether the card went through, and says so by
+   webhook.
+2. **Cashier** receives those webhooks and keeps its local `subscriptions`
+   table in sync. Its `valid()` method is the authority on whether a
+   subscription currently grants access.
+3. **This package** reads that local table on each request — no network call,
+   ever — and translates the subscribed price ids into one of your plans.
+
+Two consequences worth knowing before you wire it up:
+
+- The provider keys live in **Cashier's** configuration, not here. If a
+  Cashier setup works, this package works on top of it with nothing more than
+  the `resolver` line above and `gatewayPrices` on your plans.
+- The freshness of entitlements is exactly the freshness of Cashier's
+  webhooks. If those are not configured, Cashier's table stops moving and this
+  package will faithfully enforce stale data — the weak link in that setup is
+  the webhook, not the quota. Follow Cashier's own installation guide,
+  including `cashier:webhook`.
+
 ### 3. Define plans
 
 A plan is a catalogue entry: what it grants, how much of it, and which provider
