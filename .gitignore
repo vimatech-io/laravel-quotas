@@ -1,0 +1,21 @@
+/vendor/
+/node_modules/
+.env
+.env.*
+
+# Test & CI artifacts
+.phpunit.result.cache
+.phpunit.cache/
+build/
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Composer
+composer.lock

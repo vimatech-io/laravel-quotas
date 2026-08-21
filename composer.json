@@ -1,0 +1,79 @@
+{
+    "name": "vimatech/laravel-quotas",
+    "description": "Feature entitlements and usage quotas for Laravel SaaS applications. Works on top of Laravel Cashier, or standalone.",
+    "keywords": [
+        "laravel",
+        "saas",
+        "quotas",
+        "usage",
+        "entitlements",
+        "feature-flags",
+        "metering",
+        "cashier",
+        "subscriptions"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Adel Zemzemi",
+            "email": "adel@vimatech.io"
+        }
+    ],
+    "homepage": "https://github.com/vimatech-io/laravel-quotas",
+    "require": {
+        "php": "^8.3",
+        "illuminate/cache": "^11.0|^12.0|^13.0",
+        "illuminate/contracts": "^11.0|^12.0|^13.0",
+        "illuminate/database": "^11.0|^12.0|^13.0",
+        "illuminate/events": "^11.0|^12.0|^13.0",
+        "illuminate/http": "^11.0|^12.0|^13.0",
+        "illuminate/routing": "^11.0|^12.0|^13.0",
+        "illuminate/support": "^11.0|^12.0|^13.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.18",
+        "orchestra/testbench": "^9.0|^10.0|^11.0",
+        "pestphp/pest": "^3.0",
+        "pestphp/pest-plugin-laravel": "^3.0",
+        "phpstan/phpstan": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "VimaTech\\LaravelQuotas\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "VimaTech\\LaravelQuotas\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "test-coverage": "vendor/bin/pest --coverage",
+        "analyse": "vendor/bin/phpstan analyse",
+        "format": "vendor/bin/pint"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "VimaTech\\LaravelQuotas\\LaravelQuotasServiceProvider"
+            ],
+            "aliases": {
+                "Quotas": "VimaTech\\LaravelQuotas\\Facades\\Quotas"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "suggest": {
+        "laravel/cashier": "Charge for subscriptions with Stripe and resolve entitlements from them (cashier-stripe resolver).",
+        "laravel/cashier-paddle": "Charge for subscriptions with Paddle and resolve entitlements from them (cashier-paddle resolver)."
+    }
+}

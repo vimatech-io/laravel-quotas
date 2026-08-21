@@ -1,0 +1,11 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 6
+    paths:
+        - src
+        # Fixtures exercise the HasQuotas trait, which PHPStan only analyses
+        # when a class in scope actually uses it.
+        - tests/Fixtures
+    tmpDir: build/phpstan
