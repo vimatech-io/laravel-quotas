@@ -53,13 +53,8 @@ final class LaravelQuotasServiceProvider extends ServiceProvider
         }
     }
 
-    /**
-     * Scoped bindings are dropped by the runner, not by the framework: Laravel
-     * itself only does it between queue jobs. A worker loop written without
-     * Octane would keep these managers, and answer a later request with an
-     * entitlement or a catalogue resolved during an earlier one. Registered
-     * once for the application, never per resolved instance.
-     */
+    // Scoped bindings are dropped by the runner, not the framework — Laravel only
+    // clears them between queue jobs. Registered once for the application.
     private function forgetMemoisedAnswersOnTermination(): void
     {
         $this->app->terminating(function (): void {

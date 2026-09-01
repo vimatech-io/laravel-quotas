@@ -202,9 +202,6 @@ final class QuotaManager
         unset($this->plans[$key], $this->subscribed[$key], $this->trialing[$key]);
     }
 
-    /**
-     * Drop every memoised entitlement answer. Called when the request ends.
-     */
     public function flush(): void
     {
         $this->plans = [];
