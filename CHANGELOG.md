@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-09-01
+
+### Added
+
+- `QuotaManager::flush()`, which drops every memoised entitlement answer at once.
+
+### Fixed
+
+- Memoised entitlements and the plan catalogue are cleared when the application terminates instead of relying on `scoped()` bindings being dropped between requests. Laravel clears scoped bindings in one place only — between queue jobs — so under a worker loop written without Octane the managers outlived the request that built them. A subscription cancelled between two requests was still reported as active, and a gateway price added after a worker had loaded the catalogue could not be resolved.
+
+### Changed
+
+- `composer analyse` runs PHPStan with `--memory-limit=512M`, matching the other packages. Without it the analysis crashed against the default 128M limit rather than reporting anything.
+- Added the shared project files the other packages carry: `CONTRIBUTING.md`, `SECURITY.md`, `.github/workflows/ci.yml` and `.github/dependabot.yml`. `LICENSE` is renamed `LICENSE.md` and its copyright line aligned; the MIT terms are unchanged.
+
 ## [1.1.0] - 2026-08-21
 
 ### Added
