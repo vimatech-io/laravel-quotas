@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A test now pins the migrations to `publishesMigrations()`, which the package already used. It was the only package publishing migrations correctly, and nothing stopped that from being undone.
 - `composer analyse` runs PHPStan with `--memory-limit=512M`, matching the other packages. Without it the analysis crashed against the default 128M limit rather than reporting anything.
 - Added the shared project files the other packages carry: `CONTRIBUTING.md`, `SECURITY.md`, `.github/workflows/ci.yml` and `.github/dependabot.yml`. `LICENSE` is renamed `LICENSE.md` and its copyright line aligned; the MIT terms are unchanged.
 

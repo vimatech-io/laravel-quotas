@@ -31,6 +31,8 @@ abstract class TestCase extends BaseTestCase
 
     protected function getEnvironmentSetUp($app): void
     {
+        $app['config']->set('database.migrations.update_date_on_publish', true);
+
         $app['config']->set('database.default', 'testing');
         $app['config']->set('database.connections.testing', [
             'driver' => 'sqlite',
