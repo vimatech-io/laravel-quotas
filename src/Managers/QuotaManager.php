@@ -203,6 +203,16 @@ final class QuotaManager
     }
 
     /**
+     * Drop every memoised entitlement answer. Called when the request ends.
+     */
+    public function flush(): void
+    {
+        $this->plans = [];
+        $this->subscribed = [];
+        $this->trialing = [];
+    }
+
+    /**
      * The plan currently backing this billable, whatever system holds it.
      */
     public function currentPlan(Model $billable): ?Plan
