@@ -1,10 +1,9 @@
 # Laravel Quotas
 
-[![Tests](https://github.com/vimatech-io/laravel-quotas/actions/workflows/tests.yml/badge.svg)](https://github.com/vimatech-io/laravel-quotas/actions)
-<!-- Restore these once the package is on Packagist:
+[![CI](https://github.com/vimatech-io/laravel-quotas/actions/workflows/ci.yml/badge.svg)](https://github.com/vimatech-io/laravel-quotas/actions/workflows/ci.yml)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/vimatech/laravel-quotas.svg)](https://packagist.org/packages/vimatech/laravel-quotas)
+[![Total Downloads](https://img.shields.io/packagist/dt/vimatech/laravel-quotas.svg)](https://packagist.org/packages/vimatech/laravel-quotas)
 [![License](https://img.shields.io/packagist/l/vimatech/laravel-quotas.svg)](https://packagist.org/packages/vimatech/laravel-quotas)
--->
 
 Feature entitlements and usage quotas for Laravel SaaS applications.
 
@@ -415,9 +414,24 @@ composer format      # Pint
 The Cashier resolvers are covered by fixtures reproducing Cashier's surface, so
 the suite runs without Cashier installed.
 
+## Contributing
+
+Contributions are welcome.
+
+Please ensure:
+- Tests pass (`composer test`)
+- PHPStan passes (`composer analyse`)
+- Code style is formatted with Pint (`composer format`)
+
+Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
+
+## Security Vulnerabilities
+
+Please review our [Security Policy](SECURITY.md) for reporting vulnerabilities.
+
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE) for more information.
+The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
 
 ## Credits
 
