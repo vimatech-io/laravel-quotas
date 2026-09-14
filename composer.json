@@ -1,6 +1,6 @@
 {
     "name": "vimatech/laravel-quotas",
-    "description": "Feature entitlements and usage quotas for Laravel SaaS applications. Works on top of Laravel Cashier, or standalone.",
+    "description": "Feature entitlements and usage quotas for Laravel SaaS applications. Answers what an account may do and how much of it is left. Billing stays with Cashier.",
     "keywords": [
         "laravel",
         "saas",
