@@ -1,16 +1,21 @@
-# Laravel Quotas
+<a href="https://vimatech.io/open-source">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://vimatech.io/packages/header/laravel-quotas/dark.webp">
+    <img alt="Laravel Quotas" src="https://vimatech.io/packages/header/laravel-quotas/light.webp">
+  </picture>
+</a>
+
+# Feature entitlements and usage quotas for Laravel SaaS
 
 [![CI](https://github.com/vimatech-io/laravel-quotas/actions/workflows/ci.yml/badge.svg)](https://github.com/vimatech-io/laravel-quotas/actions/workflows/ci.yml)
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/vimatech/laravel-quotas.svg)](https://packagist.org/packages/vimatech/laravel-quotas)
 [![Total Downloads](https://img.shields.io/packagist/dt/vimatech/laravel-quotas.svg)](https://packagist.org/packages/vimatech/laravel-quotas)
 [![License](https://img.shields.io/packagist/l/vimatech/laravel-quotas.svg)](https://packagist.org/packages/vimatech/laravel-quotas)
 
-Feature entitlements and usage quotas for Laravel SaaS applications.
-
 **This package does not charge anyone.** Laravel Cashier already does that, and
 does it well: checkout, payment methods, proration, dunning, invoices, the
 Stripe billing portal. What Cashier does not answer is the question your
-application asks on every request — *is this account allowed to do this, and has
+application asks on every request: *is this account allowed to do this, and has
 it used up its allowance?*
 
 That is the entire job here. You keep Cashier for the money; this package reads
@@ -25,16 +30,16 @@ closes the door when the plan says you are done.
 
 ## What you get
 
-- **Feature gates** — `$user->hasFeature('api')`, plus route middleware.
-- **Usage quotas** — counters enforced atomically under a row lock, so
+- **Feature gates**: `$user->hasFeature('api')`, plus route middleware.
+- **Usage quotas**: counters enforced atomically under a row lock, so
   concurrent requests cannot both pass the check and overshoot the limit.
-- **Automatic periods** — allowances roll over on the subscription's
+- **Automatic periods**: allowances roll over on the subscription's
   anniversary, lazily on read and through a scheduled sweep.
-- **A plan catalogue** — features, limits and prices, mapped to your provider's
+- **A plan catalogue**: features, limits and prices, mapped to your provider's
   price ids.
-- **Any billable model** — usage is polymorphic, so `Team` and `Organization`
+- **Any billable model**: usage is polymorphic, so `Team` and `Organization`
   work as well as `User`.
-- **Cashier Stripe, Cashier Paddle, or neither** — one small interface decides
+- **Cashier Stripe, Cashier Paddle, or neither**: one small interface decides
   where subscriptions come from.
 
 ## Requirements
@@ -85,7 +90,7 @@ class User extends Authenticatable
 You may also point `resolver` at your own class implementing
 `SubscriptionResolverInterface`.
 
-#### How the Cashier resolvers work — and what they never do
+#### How the Cashier resolvers work, and what they never do
 
 This package **never talks to Stripe or Paddle** and needs none of their API
 keys. Verification is layered, and each layer owns its own question:
@@ -95,8 +100,8 @@ keys. Verification is layered, and each layer owns its own question:
 2. **Cashier** receives those webhooks and keeps its local `subscriptions`
    table in sync. Its `valid()` method is the authority on whether a
    subscription currently grants access.
-3. **This package** reads that local table on each request — no network call,
-   ever — and translates the subscribed price ids into one of your plans.
+3. **This package** reads that local table on each request (no network call,
+   ever) and translates the subscribed price ids into one of your plans.
 
 Two consequences worth knowing before you wire it up:
 
@@ -105,7 +110,7 @@ Two consequences worth knowing before you wire it up:
   the `resolver` line above and `gatewayPrices` on your plans.
 - The freshness of entitlements is exactly the freshness of Cashier's
   webhooks. If those are not configured, Cashier's table stops moving and this
-  package will faithfully enforce stale data — the weak link in that setup is
+  package will faithfully enforce stale data: the weak link in that setup is
   the webhook, not the quota. Follow Cashier's own installation guide,
   including `cashier:webhook`.
 
@@ -135,7 +140,7 @@ unlimited; a feature absent from `limits` is unlimited too.
 
 ### 4. Sell the plan through Cashier
 
-Nothing in this package touches the checkout — that stays Cashier's:
+Nothing in this package touches the checkout, that stays Cashier's:
 
 ```php
 return $user->newSubscription('default', 'price_pro_monthly')
@@ -209,7 +214,7 @@ status code stands on its own.
 ## How quotas reset
 
 Allowances are measured from the subscription's anniversary, not from the
-calendar. Subscribe on the 20th and the allowance returns on the 20th — not on
+calendar. Subscribe on the 20th and the allowance returns on the 20th, not on
 the 1st because the month happened to turn over. An anniversary on the 31st
 clamps to the last day of shorter months, the same rule providers apply.
 
@@ -232,24 +237,24 @@ The command is registered on the scheduler daily. Turn that off with
     'reset_interval' => 'monthly',   // daily, weekly, monthly, yearly, manual
     'schedule_reset' => true,
 
-    // Features that follow their own cadence instead of the default —
+    // Features that follow their own cadence instead of the default:
     // AI tokens back every week next to exports that stay monthly:
     'feature_intervals' => ['ai_tokens' => 'weekly'],
 ],
 ```
 
-Periods are measured from `current_period_start` — the date the customer is
-actually billed on — falling back to when the subscription was created. That
+Periods are measured from `current_period_start` (the date the customer is
+actually billed on), falling back to when the subscription was created. That
 distinction matters after a plan change: providers reset the billing cycle on
 proration, and anchoring to the creation date would drift the quota reset away
 from the invoice date permanently.
 
-`manual` never rolls over on its own — you call `$user->resetUsage('feature')`.
+`manual` never rolls over on its own: you call `$user->resetUsage('feature')`.
 
 ## Standing limits: counting things that exist, not things consumed
 
 Not every number in a pricing grid is a consumable. "2 000 AI tokens a month"
-is one — it spends down and comes back. "3 projects" is not: deleting a project
+is one: it spends down and comes back. "3 projects" is not: deleting a project
 must free a slot immediately, and no period should ever refill it.
 
 Usage counters only go up and reset by period, so they are the wrong tool for
@@ -264,7 +269,7 @@ if ($limit !== Usage::UNLIMITED && $user->projects()->count() >= $limit) {
 }
 ```
 
-Deletion needs no quota code at all — the count drops, the slot is free.
+Deletion needs no quota code at all: the count drops, the slot is free.
 
 ## Without a payment provider
 
@@ -288,7 +293,7 @@ The interval is what "cancel at period end" measures against: a yearly
 subscriber who cancels on day one keeps the year they were charged for.
 
 Two refusals are deliberate. `subscribe()` throws
-`AlreadySubscribedException` when an active subscription already exists — two
+`AlreadySubscribedException` when an active subscription already exists: two
 of them for one billable is not a state this package can reason about, and a
 double-clicked form is enough to produce it. And both `subscribe()` and
 `swapPlan()` throw `PlanNotFoundException` for a deactivated plan: a plan you
@@ -297,7 +302,7 @@ subscribed to keep resolving after they are retired, so nobody loses what they
 bought.
 
 These write to the local table, so they throw
-`LocalSubscriptionsDisabledException` under a Cashier resolver — where creating
+`LocalSubscriptionsDisabledException` under a Cashier resolver, where creating
 and cancelling subscriptions is Cashier's job, not this package's. That refusal
 is deliberate: a local "subscription" nobody is paying for is exactly the bug
 this design exists to prevent.
@@ -330,7 +335,7 @@ class User extends Authenticatable implements QuotaAware, ManagesLocalSubscripti
 }
 ```
 
-`QuotaAware` is the read side — plan, features, usage — and behaves the same
+`QuotaAware` is the read side (plan, features, usage) and behaves the same
 whoever owns the subscription. `ManagesLocalSubscription` is the write side, and
 throws under a Cashier resolver. Implement whichever you actually use.
 
@@ -355,12 +360,12 @@ final class LicenceServerResolver implements SubscriptionResolverInterface
 ```
 
 `anchor()` returns the date quota periods are measured from. Derive it from data
-you already hold — it is consulted on ordinary requests and must never make a
+you already hold: it is consulted on ordinary requests and must never make a
 network call.
 
-If your resolver also reads this package's own subscriptions table — a Paddle
+If your resolver also reads this package's own subscriptions table (a Paddle
 resolver with an AppSumo-lifetime fallback, a Stripe resolver with manually
-granted internal tenants — declare the `LocalSubscriptionSource` marker as
+granted internal tenants), declare the `LocalSubscriptionSource` marker as
 well. That is what authorises `subscribe()`, `swapPlan()` and
 `cancelSubscription()` to write the local table while your resolver is active;
 without it they throw, because a resolver reading a payment provider alone must
