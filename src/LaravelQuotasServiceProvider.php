@@ -17,6 +17,7 @@ use VimaTech\LaravelQuotas\Managers\SubscriptionManager;
 use VimaTech\LaravelQuotas\Quota\UsageCache;
 use VimaTech\LaravelQuotas\Quota\UsageResetter;
 use VimaTech\LaravelQuotas\Resolvers\CashierPaddleResolver;
+use VimaTech\LaravelQuotas\Resolvers\CashierResolver;
 use VimaTech\LaravelQuotas\Resolvers\CashierStripeResolver;
 use VimaTech\LaravelQuotas\Resolvers\LocalSubscriptionResolver;
 
@@ -53,7 +54,7 @@ final class LaravelQuotasServiceProvider extends ServiceProvider
         }
     }
 
-    // Scoped bindings are dropped by the runner, not the framework — Laravel only
+    // Scoped bindings are dropped by the runner, not the framework: Laravel only
     // clears them between queue jobs. Registered once for the application.
     private function forgetMemoisedAnswersOnTermination(): void
     {
@@ -80,15 +81,17 @@ final class LaravelQuotasServiceProvider extends ServiceProvider
                 );
             }
 
-            if (is_a($class, CashierStripeResolver::class, true) || is_a($class, CashierPaddleResolver::class, true)) {
-                return new $class(
-                    $app->make(PlanManager::class),
-                    (string) config('quotas.subscriptions.cashier_type', 'default'),
-                );
-            }
-
             return $app->make($class);
         });
+
+        // Bound here rather than built inline so a custom resolver composing a
+        // Cashier resolver reads the configured subscription type too.
+        foreach ([CashierStripeResolver::class, CashierPaddleResolver::class] as $cashier) {
+            $this->app->bind($cashier, fn (Container $app): CashierResolver => new $cashier(
+                $app->make(PlanManager::class),
+                (string) config('quotas.subscriptions.cashier_type', 'default'),
+            ));
+        }
     }
 
     private function registerManagers(): void

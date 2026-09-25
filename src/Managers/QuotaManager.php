@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace VimaTech\LaravelQuotas\Managers;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use VimaTech\LaravelQuotas\Contracts\SubscriptionResolverInterface;
+use VimaTech\LaravelQuotas\Exceptions\PlanNotFoundException;
 use VimaTech\LaravelQuotas\Models\Plan;
 use VimaTech\LaravelQuotas\Models\Usage;
 use VimaTech\LaravelQuotas\Quota\UsageCache;
@@ -16,10 +18,10 @@ final class QuotaManager
     /**
      * Plans already resolved during this request, keyed by billable.
      *
-     * Feature gates are asked the same question several times per request — a
-     * middleware, a Blade check, the action itself — and each answer would
-     * otherwise cost a fresh subscription lookup. The binding is
-     * request-scoped, so this lives exactly as long as the answer stays true.
+     * Feature gates are asked the same question several times per request (a
+     * middleware, a Blade check, the action itself), and each answer would
+     * otherwise cost a fresh subscription lookup. Dropped at the end of the
+     * request by flush().
      *
      * @var array<string, Plan|null>
      */
@@ -29,8 +31,8 @@ final class QuotaManager
      * Subscription verdicts already resolved during this request.
      *
      * The Cashier resolvers answer each of these with a fresh subscription
-     * lookup, and a gated page asks all three — is there a subscription, is it
-     * a trial, which plan — so without this the same row is fetched several
+     * lookup, and a gated page asks all three (is there a subscription, is it
+     * a trial, which plan), so without this the same row is fetched several
      * times per request.
      *
      * @var array<string, bool>
@@ -44,6 +46,7 @@ final class QuotaManager
         private readonly SubscriptionResolverInterface $resolver,
         private readonly UsageCache $cache,
         private readonly UsageResetter $resetter,
+        private readonly PlanManager $planManager,
     ) {}
 
     /**
@@ -116,7 +119,7 @@ final class QuotaManager
             }
 
             return $usage->used;
-        });
+        }, $this->periodEndsAt($billable, $feature));
     }
 
     /**
@@ -187,6 +190,15 @@ final class QuotaManager
         }
     }
 
+    /**
+     * The moment the allowance of a feature comes back for this billable, or
+     * null on the manual interval.
+     */
+    public function periodEndsAt(Model $billable, string $feature): ?CarbonImmutable
+    {
+        return $this->resetter->periodEndsAt($billable, $feature);
+    }
+
     public function clearCache(Model $billable, string $feature): void
     {
         $this->cache->forget($billable, $feature);
@@ -200,6 +212,8 @@ final class QuotaManager
         $key = $this->memoKey($billable);
 
         unset($this->plans[$key], $this->subscribed[$key], $this->trialing[$key]);
+
+        $this->resetter->forgetAnchor($billable);
     }
 
     public function flush(): void
@@ -207,10 +221,15 @@ final class QuotaManager
         $this->plans = [];
         $this->subscribed = [];
         $this->trialing = [];
+
+        $this->resetter->flush();
     }
 
     /**
-     * The plan currently backing this billable, whatever system holds it.
+     * The plan currently backing this billable, whatever system holds it, or
+     * `quotas.subscriptions.default_plan` when it holds no subscription.
+     *
+     * @throws PlanNotFoundException when the default plan is configured but missing
      */
     public function currentPlan(Model $billable): ?Plan
     {
@@ -220,7 +239,7 @@ final class QuotaManager
         // answer and the most frequent one on a gated route, so it has to be
         // memoised too rather than re-queried on every check.
         if (! array_key_exists($key, $this->plans)) {
-            $this->plans[$key] = $this->resolver->resolvePlan($billable);
+            $this->plans[$key] = $this->resolver->resolvePlan($billable) ?? $this->defaultPlanFor($billable);
         }
 
         return $this->plans[$key];
@@ -249,6 +268,30 @@ final class QuotaManager
         }
 
         return $store[$key];
+    }
+
+    /**
+     * A billable holding a valid subscription that maps to no plan keeps no
+     * plan: handing it the free tier would hide a gateway_prices mistake
+     * behind customers who paid and silently got less.
+     */
+    private function defaultPlanFor(Model $billable): ?Plan
+    {
+        $slug = config('quotas.subscriptions.default_plan');
+
+        if ($slug === null || $slug === '' || $this->isSubscribed($billable)) {
+            return null;
+        }
+
+        if (! is_string($slug)) {
+            throw PlanNotFoundException::defaultPlan(get_debug_type($slug));
+        }
+
+        try {
+            return $this->planManager->findBySlug($slug);
+        } catch (PlanNotFoundException) {
+            throw PlanNotFoundException::defaultPlan($slug);
+        }
     }
 
     private function memoKey(Model $billable): string

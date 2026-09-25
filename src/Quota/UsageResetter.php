@@ -15,7 +15,7 @@ use VimaTech\LaravelQuotas\Models\Usage;
  *
  * Resets happen two ways, and both matter. The lazy path runs on every read and
  * every increment, so a counter is never allowed to report a stale number even
- * if no scheduler is configured — quotas that silently stop resetting are worse
+ * if no scheduler is configured: quotas that silently stop resetting are worse
  * than quotas that reset late. The sweep is the eager counterpart, run by
  * `quotas:reset`, and exists so that counters nobody touches still come
  * back to zero and so dashboards read correctly between requests.
@@ -23,7 +23,8 @@ use VimaTech\LaravelQuotas\Models\Usage;
 final class UsageResetter
 {
     /**
-     * Anchors already resolved during this run, keyed by billable.
+     * Anchors already resolved during this request, keyed by billable.
+     * Dropped with QuotaManager::forgetPlan() and flush().
      *
      * @var array<string, CarbonImmutable|null>
      */
@@ -96,13 +97,35 @@ final class UsageResetter
             ? CarbonImmutable::instance($usage->reset_at)
             : null;
 
-        return QuotaPeriod::forFeature($usage->feature)
-            ->hasRolledOver($resetAt, $this->anchorFor($billable));
+        $period = QuotaPeriod::forFeature($usage->feature);
+
+        return $period->hasRolledOver($resetAt, $this->anchorFor($billable, $period));
     }
 
-    private function anchorFor(Model $billable): ?CarbonImmutable
+    public function periodEndsAt(Model $billable, string $feature): ?CarbonImmutable
     {
-        $key = $billable->getMorphClass().':'.$billable->getKey();
+        $period = QuotaPeriod::forFeature($feature);
+
+        return $period->currentEnd($this->anchorFor($billable, $period));
+    }
+
+    public function forgetAnchor(Model $billable): void
+    {
+        unset($this->anchors[$this->memoKey($billable)]);
+    }
+
+    public function flush(): void
+    {
+        $this->anchors = [];
+    }
+
+    private function anchorFor(Model $billable, QuotaPeriod $period): ?CarbonImmutable
+    {
+        if (! $period->followsSubscription()) {
+            return null;
+        }
+
+        $key = $this->memoKey($billable);
 
         // array_key_exists, not ??=: a null anchor is a real answer (no
         // subscription to measure from) and re-resolving it for every counter
@@ -112,5 +135,10 @@ final class UsageResetter
         }
 
         return $this->anchors[$key];
+    }
+
+    private function memoKey(Model $billable): string
+    {
+        return $billable->getMorphClass().':'.$billable->getKey();
     }
 }
