@@ -3,16 +3,19 @@
 declare(strict_types=1);
 
 use VimaTech\LaravelQuotas\DTOs\PlanData;
+use VimaTech\LaravelQuotas\Exceptions\BillableNotCashierReadyException;
 use VimaTech\LaravelQuotas\Exceptions\PlanNotFoundException;
 use VimaTech\LaravelQuotas\Exceptions\UsageLimitExceededException;
 use VimaTech\LaravelQuotas\Managers\PlanManager;
 use VimaTech\LaravelQuotas\Managers\QuotaManager;
 use VimaTech\LaravelQuotas\Models\Usage;
 use VimaTech\LaravelQuotas\Tests\Fixtures\CashierUser;
+use VimaTech\LaravelQuotas\Tests\Fixtures\DeclaredExceptionCatcher;
 use VimaTech\LaravelQuotas\Tests\Fixtures\FakeCashierSubscription;
 use VimaTech\LaravelQuotas\Tests\Fixtures\PaddleWithLocalFallbackResolver;
 use VimaTech\LaravelQuotas\Tests\Fixtures\Team;
 use VimaTech\LaravelQuotas\Tests\Fixtures\TeamOwnersResolver;
+use VimaTech\LaravelQuotas\Tests\Fixtures\User;
 
 beforeEach(function () {
     $this->loadMigrationsFrom(__DIR__.'/../Fixtures');
@@ -80,6 +83,22 @@ it('refuses a default plan that does not exist', function () {
 
     paddleUser()->canUse('invoice_issuing');
 })->throws(PlanNotFoundException::class, 'The default plan [fre] set in quotas.subscriptions.default_plan does not exist.');
+
+it('lets a missing default plan escape an increment, where a consumer can catch it', function () {
+    config()->set('quotas.subscriptions.default_plan', 'fre');
+    $catcher = app(DeclaredExceptionCatcher::class);
+
+    expect($catcher->increment(paddleUser(), 'invoice_issuing'))->toBeInstanceOf(PlanNotFoundException::class)
+        ->and($catcher->incrementUsage(paddleUser(email: 'b@example.test'), 'invoice_issuing'))->toBeInstanceOf(PlanNotFoundException::class)
+        ->and(Usage::query()->count())->toBe(0);
+});
+
+it('lets a billable Cashier cannot read escape a feature check', function () {
+    $user = User::query()->create(['name' => 'Ada', 'email' => 'ada@example.test']);
+
+    expect(app(DeclaredExceptionCatcher::class)->canUse($user, 'invoice_issuing'))
+        ->toBeInstanceOf(BillableNotCashierReadyException::class);
+});
 
 it('leaves a billable without a subscription planless when no default is set', function () {
     config()->set('quotas.subscriptions.default_plan', null);

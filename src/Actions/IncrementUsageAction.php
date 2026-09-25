@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use VimaTech\LaravelQuotas\Events\UsageLimitReached;
 use VimaTech\LaravelQuotas\Events\UsageReset;
+use VimaTech\LaravelQuotas\Exceptions\BillableNotCashierReadyException;
+use VimaTech\LaravelQuotas\Exceptions\PlanNotFoundException;
 use VimaTech\LaravelQuotas\Exceptions\UsageLimitExceededException;
 use VimaTech\LaravelQuotas\Managers\QuotaManager;
 use VimaTech\LaravelQuotas\Models\Usage;
@@ -31,6 +33,9 @@ final class IncrementUsageAction
      * push usage past the plan limit.
      *
      * @throws UsageLimitExceededException
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
+     * @throws InvalidArgumentException
      */
     public function execute(Model $billable, string $feature, int $amount = 1): void
     {

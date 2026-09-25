@@ -7,8 +7,11 @@ namespace VimaTech\LaravelQuotas\Middleware;
 use Closure;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
+use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Response;
+use VimaTech\LaravelQuotas\Exceptions\BillableNotCashierReadyException;
 use VimaTech\LaravelQuotas\Exceptions\FeatureNotAvailableException;
+use VimaTech\LaravelQuotas\Exceptions\PlanNotFoundException;
 use VimaTech\LaravelQuotas\Managers\QuotaManager;
 
 final class EnsureFeatureIsAvailable
@@ -20,6 +23,9 @@ final class EnsureFeatureIsAvailable
     /**
      * @throws AuthenticationException
      * @throws FeatureNotAvailableException
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
+     * @throws InvalidArgumentException
      */
     public function handle(Request $request, Closure $next, string $feature): Response
     {
