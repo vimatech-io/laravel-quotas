@@ -6,7 +6,9 @@ namespace VimaTech\LaravelQuotas\Managers;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
+use InvalidArgumentException;
 use VimaTech\LaravelQuotas\Contracts\SubscriptionResolverInterface;
+use VimaTech\LaravelQuotas\Exceptions\BillableNotCashierReadyException;
 use VimaTech\LaravelQuotas\Exceptions\PlanNotFoundException;
 use VimaTech\LaravelQuotas\Models\Plan;
 use VimaTech\LaravelQuotas\Models\Usage;
@@ -52,6 +54,10 @@ final class QuotaManager
     /**
      * Whether a billable may use a feature right now: its plan grants the
      * feature and the allowance is not spent.
+     *
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
+     * @throws InvalidArgumentException
      */
     public function canUse(Model $billable, string $feature): bool
     {
@@ -66,6 +72,9 @@ final class QuotaManager
 
     /**
      * Whether the current plan grants the feature at all, regardless of usage.
+     *
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
      */
     public function hasFeature(Model $billable, string $feature): bool
     {
@@ -79,6 +88,10 @@ final class QuotaManager
      * having no plan at all: a caller that gates on this alone must not let an
      * unentitled billable through, and it has to agree with remaining(), which
      * reports 0 in the same situations.
+     *
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
+     * @throws InvalidArgumentException
      */
     public function hasReachedLimit(Model $billable, string $feature): bool
     {
@@ -125,6 +138,10 @@ final class QuotaManager
     /**
      * How much of a feature is left, or null when the plan grants it without
      * a ceiling.
+     *
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
+     * @throws InvalidArgumentException
      */
     public function remaining(Model $billable, string $feature): ?int
     {
@@ -145,6 +162,9 @@ final class QuotaManager
 
     /**
      * Whether a feature is granted without a ceiling.
+     *
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
      */
     public function isUnlimited(Model $billable, string $feature): bool
     {
@@ -230,6 +250,7 @@ final class QuotaManager
      * `quotas.subscriptions.default_plan` when it holds no subscription.
      *
      * @throws PlanNotFoundException when the default plan is configured but missing
+     * @throws BillableNotCashierReadyException
      */
     public function currentPlan(Model $billable): ?Plan
     {
