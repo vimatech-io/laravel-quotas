@@ -6,6 +6,7 @@ namespace VimaTech\LaravelQuotas\Quota;
 
 use Carbon\CarbonImmutable;
 use InvalidArgumentException;
+use VimaTech\LaravelQuotas\Enums\PeriodAnchor;
 
 /**
  * Works out when the current quota period began.
@@ -15,8 +16,9 @@ use InvalidArgumentException;
  *
  * Periods are measured from the subscription's anniversary rather than from the
  * calendar, so someone who subscribes on the 20th gets their allowance back on
- * the 20th — not three days later because the month happened to turn over.
- * With no anchor available the calendar is used instead.
+ * the 20th, not three days later because the month happened to turn over.
+ * With no anchor available, or for a feature anchored to the calendar, periods
+ * follow the calendar in the application timezone.
  */
 final class QuotaPeriod
 {
@@ -43,6 +45,7 @@ final class QuotaPeriod
 
     public function __construct(
         private readonly string $interval,
+        private readonly PeriodAnchor $anchoring = PeriodAnchor::Subscription,
     ) {
         // Loud, not lenient: a misspelt interval that silently became monthly
         // would change when customers get their allowance back, and nobody
@@ -63,22 +66,24 @@ final class QuotaPeriod
     }
 
     /**
-     * The period governing one feature.
-     *
-     * Most features follow the application-wide interval; a feature named in
-     * `quotas.quotas.feature_intervals` follows its own instead. This is what
-     * lets AI tokens come back weekly while exports stay monthly — one global
-     * interval cannot say both.
+     * The period governing one feature: its interval from
+     * `quotas.quotas.feature_intervals` or `reset_interval`, and its anchoring
+     * from `quotas.quotas.feature_anchors`.
      */
     public static function forFeature(string $feature): self
     {
-        $overrides = config('quotas.quotas.feature_intervals', []);
+        $intervals = config('quotas.quotas.feature_intervals', []);
 
-        if (is_array($overrides) && isset($overrides[$feature]) && is_string($overrides[$feature])) {
-            return new self($overrides[$feature]);
-        }
+        $interval = is_array($intervals) && isset($intervals[$feature]) && is_string($intervals[$feature])
+            ? $intervals[$feature]
+            : (string) config('quotas.quotas.reset_interval', self::MONTHLY);
 
-        return self::fromConfig();
+        return new self($interval, self::anchoringFor($feature));
+    }
+
+    public function followsSubscription(): bool
+    {
+        return $this->anchoring === PeriodAnchor::Subscription && $this->interval !== self::MANUAL;
     }
 
     /**
@@ -87,21 +92,16 @@ final class QuotaPeriod
      */
     public function currentStart(?CarbonImmutable $anchor = null, ?CarbonImmutable $now = null): ?CarbonImmutable
     {
-        $now = $now ?? CarbonImmutable::now();
+        return $this->bounds($anchor, $now)[0] ?? null;
+    }
 
-        if ($this->interval === self::MANUAL) {
-            return null;
-        }
-
-        // An anchor in the future belongs to a subscription that has not begun;
-        // treat the period as starting with it rather than winding backwards.
-        if ($anchor !== null && $anchor->greaterThan($now)) {
-            return $anchor;
-        }
-
-        return $anchor === null
-            ? $this->calendarStart($now)
-            : $this->anniversaryStart($anchor, $now);
+    /**
+     * The first instant of the next period, when the allowance comes back, or
+     * null on the manual interval.
+     */
+    public function currentEnd(?CarbonImmutable $anchor = null, ?CarbonImmutable $now = null): ?CarbonImmutable
+    {
+        return $this->bounds($anchor, $now)[1] ?? null;
     }
 
     /**
@@ -121,6 +121,56 @@ final class QuotaPeriod
         return $lastResetAt === null || $lastResetAt->lessThan($start);
     }
 
+    /**
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}|null
+     */
+    private function bounds(?CarbonImmutable $anchor, ?CarbonImmutable $now): ?array
+    {
+        $now = $now ?? CarbonImmutable::now();
+
+        if ($this->interval === self::MANUAL) {
+            return null;
+        }
+
+        if ($anchor === null || $this->anchoring === PeriodAnchor::Calendar) {
+            $start = $this->calendarStart($now);
+
+            return [$start, $this->addIntervals($start, 1)];
+        }
+
+        // An anchor in the future belongs to a subscription that has not begun:
+        // the period starts with it rather than winding backwards.
+        $elapsed = $anchor->greaterThan($now) ? 0 : $this->elapsedIntervals($anchor, $now);
+
+        return [$this->addIntervals($anchor, $elapsed), $this->addIntervals($anchor, $elapsed + 1)];
+    }
+
+    private static function anchoringFor(string $feature): PeriodAnchor
+    {
+        $anchors = config('quotas.quotas.feature_anchors', []);
+
+        if (! is_array($anchors)) {
+            throw new InvalidArgumentException('quotas.quotas.feature_anchors must be an array of feature => anchor.');
+        }
+
+        if (! array_key_exists($feature, $anchors)) {
+            return PeriodAnchor::Subscription;
+        }
+
+        $anchoring = is_string($anchors[$feature]) ? PeriodAnchor::tryFrom($anchors[$feature]) : null;
+
+        if ($anchoring === null) {
+            $given = is_scalar($anchors[$feature]) ? (string) $anchors[$feature] : get_debug_type($anchors[$feature]);
+            $known = implode(', ', array_column(PeriodAnchor::cases(), 'value'));
+
+            throw new InvalidArgumentException(
+                "Unknown quota period anchor [{$given}] for feature [{$feature}] in quotas.quotas.feature_anchors. Use one of [{$known}]."
+            );
+        }
+
+        return $anchoring;
+    }
+
     private function calendarStart(CarbonImmutable $now): CarbonImmutable
     {
         return match ($this->interval) {
@@ -132,20 +182,15 @@ final class QuotaPeriod
     }
 
     /**
-     * Roll the anchor forward by whole intervals until the next one would
-     * overshoot the present.
+     * How many whole intervals separate the anchor from now.
      *
-     * The no-overflow variants are the whole point of this method: plain
+     * The no-overflow variants in addIntervals() are the point: plain
      * addMonths() turns a January 31st anchor into March 3rd, skipping February
-     * entirely and handing out a free month of quota. Clamping to the 28th is
-     * the rule payment providers apply to billing anniversaries.
-     *
-     * The diff is only a starting estimate for the same reason — between
-     * January 31st and February 28th, Carbon counts less than a whole month
-     * even though the anniversary has come round — so it is corrected against
-     * the actual dates rather than trusted.
+     * and handing out a free month of quota. Carbon's diff counts less than a
+     * month between January 31st and February 28th, so it is only an estimate,
+     * corrected against the actual dates.
      */
-    private function anniversaryStart(CarbonImmutable $anchor, CarbonImmutable $now): CarbonImmutable
+    private function elapsedIntervals(CarbonImmutable $anchor, CarbonImmutable $now): int
     {
         $elapsed = max(0, (int) match ($this->interval) {
             self::DAILY => $anchor->diffInDays($now),
@@ -154,17 +199,15 @@ final class QuotaPeriod
             default => $anchor->diffInMonths($now),
         });
 
-        // The estimate undershot: the next anniversary has already passed.
         while ($this->addIntervals($anchor, $elapsed + 1)->lessThanOrEqualTo($now)) {
             $elapsed++;
         }
 
-        // The estimate overshot: the period it names has not begun yet.
         while ($elapsed > 0 && $this->addIntervals($anchor, $elapsed)->greaterThan($now)) {
             $elapsed--;
         }
 
-        return $this->addIntervals($anchor, $elapsed);
+        return $elapsed;
     }
 
     private function addIntervals(CarbonImmutable $anchor, int $count): CarbonImmutable

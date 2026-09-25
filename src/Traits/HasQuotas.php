@@ -120,7 +120,7 @@ trait HasQuotas
     /**
      * The local subscription record, when there is one.
      *
-     * Returns null under a Cashier-backed resolver — ask Cashier instead.
+     * Returns null under a Cashier-backed resolver. Ask Cashier instead.
      */
     public function currentSubscription(): ?Subscription
     {
@@ -134,7 +134,7 @@ trait HasQuotas
 
     public function isSubscribedTo(string $planSlug): bool
     {
-        return $this->currentPlan()?->slug === $planSlug;
+        return $this->isSubscribed() && $this->currentPlan()?->slug === $planSlug;
     }
 
     public function onTrial(): bool
