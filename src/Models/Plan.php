@@ -17,7 +17,7 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string $slug
  * @property string|null $description
- * @property int $monthly_price
+ * @property int|null $monthly_price
  * @property int|null $yearly_price
  * @property string $currency
  * @property array<int, string>|null $features
