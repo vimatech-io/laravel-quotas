@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A custom resolver composing `CashierStripeResolver` or `CashierPaddleResolver` through the container received the `default` Cashier subscription type instead of `quotas.subscriptions.cashier_type`.
 - `isSubscribedTo()` requires a subscription, so it does not report a billable on the default plan as subscribed to it.
 - `IncrementUsageAction::execute()`, `incrementUsage()` and `EntitlementManager::increment()` declared only `UsageLimitExceededException`, so static analysis reported a `catch` of `PlanNotFoundException`, `BillableNotCashierReadyException` or `InvalidArgumentException` around them as dead code, although each can be thrown. Their `@throws` now list all four, and `currentPlan()`, `hasFeature()`, `canUse()`, `hasReachedLimit()`, `remaining()`, `remainingUsage()`, `isUnlimited()`, `hasUnlimited()` and `EnsureFeatureIsAvailable` declare the ones they can raise. The lists cover this package's exceptions: database errors and exceptions thrown by a custom resolver are not listed.
+- `Plan::$monthly_price` was declared `int`, although the column is nullable and `PlanData` leaves it `null` by default. Static analysis therefore reported a `null` check on a plan without a monthly price as always true. It is now declared `int|null`, like `yearly_price`.
 
 ### Changed
 

@@ -6,6 +6,7 @@ use VimaTech\LaravelQuotas\DTOs\PlanData;
 use VimaTech\LaravelQuotas\Exceptions\PlanNotFoundException;
 use VimaTech\LaravelQuotas\Managers\PlanManager;
 use VimaTech\LaravelQuotas\Models\Plan;
+use VimaTech\LaravelQuotas\Tests\Fixtures\PlanPriceReader;
 
 beforeEach(function () {
     $this->loadMigrationsFrom(__DIR__.'/../Fixtures');
@@ -91,4 +92,14 @@ it('can check plan features', function () {
         ->and($plan->hasFeature('unknown'))->toBeFalse()
         ->and($plan->getLimit('executions'))->toBe(1000)
         ->and($plan->getLimit('unknown'))->toBeNull();
+});
+
+it('keeps a price that was never set as null', function () {
+    $plan = $this->planManager->create(new PlanData(name: 'Unpriced', slug: 'unpriced'));
+    $reader = new PlanPriceReader;
+
+    expect($plan->refresh()->monthly_price)->toBeNull()
+        ->and($plan->yearly_price)->toBeNull()
+        ->and($reader->hasMonthlyPrice($plan))->toBeFalse()
+        ->and($reader->hasYearlyPrice($plan))->toBeFalse();
 });
