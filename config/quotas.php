@@ -13,11 +13,11 @@ return [
     | reads whichever system owns the subscription and enforces the plan's
     | features and quotas against it.
     |
-    |   "local"          — the subscriptions table shipped with this package,
+    |   "local"          : the subscriptions table shipped with this package,
     |                      for accounts granted by hand or without a provider.
     |                      The only option supporting several billable types.
-    |   "cashier-stripe" — a laravel/cashier subscription.
-    |   "cashier-paddle" — a laravel/cashier-paddle subscription.
+    |   "cashier-stripe" : a laravel/cashier subscription.
+    |   "cashier-paddle" : a laravel/cashier-paddle subscription.
     |
     | You may also name your own SubscriptionResolverInterface implementation.
     |
@@ -42,6 +42,15 @@ return [
         | Cashier's own valid() decides.
         */
         'past_due_grace_days' => env('QUOTAS_PAST_DUE_GRACE_DAYS', 0),
+
+        /*
+        | Slug of the plan a billable holds while it has no subscription, for a
+        | free tier. Applies under every resolver, your own included. A billable
+        | whose subscription maps to no plan does not get it. A slug that
+        | matches no plan throws PlanNotFoundException. Null leaves billables
+        | without a subscription planless.
+        */
+        'default_plan' => env('QUOTAS_DEFAULT_PLAN'),
     ],
 
     /*
@@ -53,10 +62,11 @@ return [
     |
     | Periods are measured from the subscription's anniversary, not from the
     | calendar: someone who subscribed on the 20th gets their allowance back on
-    | the 20th. Without a subscription to anchor to, the calendar is used.
+    | the 20th. Without a subscription to anchor to, the calendar is used, in
+    | the application timezone.
     |
     | Supported intervals: "daily", "weekly", "monthly", "yearly", "manual".
-    | "manual" never rolls over on its own — you call resetUsage() yourself.
+    | "manual" never rolls over on its own: you call resetUsage() yourself.
     |
     */
     'quotas' => [
@@ -64,14 +74,26 @@ return [
 
         /*
         | Features whose allowance follows its own interval instead of the
-        | application-wide one above. Useful when one plan mixes cadences —
-        | AI tokens that come back weekly next to exports that stay monthly:
+        | application-wide one above. Useful when one plan mixes cadences, such
+        | as AI tokens that come back weekly next to exports that stay monthly:
         |
         |     'feature_intervals' => ['ai_tokens' => 'weekly'],
         |
         | A feature not named here follows reset_interval.
         */
         'feature_intervals' => [],
+
+        /*
+        | Features whose period follows the calendar even for subscribers, so
+        | the allowance comes back on the 1st of the month (or the start of the
+        | day, week or year) in the application timezone:
+        |
+        |     'feature_anchors' => ['invoice_issuing' => 'calendar'],
+        |
+        | A feature not named here is anchored to the subscription. An unknown
+        | value throws.
+        */
+        'feature_anchors' => [],
 
         /*
         | Register the daily `quotas:reset` sweep on the scheduler.
@@ -141,8 +163,10 @@ return [
     |--------------------------------------------------------------------------
     |
     | Usage counters are read far more often than they change, so they are
-    | cached briefly. Writes invalidate the entry immediately; the TTL only
-    | bounds how long a counter changed outside this package can look stale.
+    | cached briefly. A write invalidates the entry once its transaction
+    | commits, nothing is cached from inside a transaction, and no entry
+    | outlives the period it was counted in. The TTL only bounds how long a
+    | counter changed outside this package can look stale.
     |
     */
     'cache' => [

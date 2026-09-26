@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use VimaTech\LaravelQuotas\Enums\PeriodAnchor;
 use VimaTech\LaravelQuotas\Quota\QuotaPeriod;
 
 it('measures monthly periods from the subscription anniversary', function () {
@@ -142,4 +143,22 @@ it('lets one feature follow its own interval while the rest follow the default',
 it('refuses a misspelt reset interval instead of silently becoming monthly', function () {
     expect(fn () => new QuotaPeriod('weekl'))
         ->toThrow(InvalidArgumentException::class, 'Unknown quota reset interval');
+});
+
+it('ignores the anchor when anchored to the calendar', function () {
+    $period = new QuotaPeriod(QuotaPeriod::MONTHLY, PeriodAnchor::Calendar);
+    $anchor = CarbonImmutable::parse('2026-01-20 09:30:00');
+
+    expect($period->currentStart($anchor, CarbonImmutable::parse('2026-01-31 23:59:59'))->toDateTimeString())->toBe('2026-01-01 00:00:00')
+        ->and($period->currentEnd($anchor, CarbonImmutable::parse('2026-01-31 23:59:59'))->toDateTimeString())->toBe('2026-02-01 00:00:00')
+        ->and($period->currentStart($anchor, CarbonImmutable::parse('2026-02-01 00:00:00'))->toDateTimeString())->toBe('2026-02-01 00:00:00')
+        ->and($period->currentEnd($anchor, CarbonImmutable::parse('2026-02-28 23:59:59'))->toDateTimeString())->toBe('2026-03-01 00:00:00')
+        ->and($period->followsSubscription())->toBeFalse();
+});
+
+it('ends a future anchored period one interval after it starts', function () {
+    $period = new QuotaPeriod(QuotaPeriod::MONTHLY);
+    $anchor = CarbonImmutable::parse('2026-03-31 10:00:00');
+
+    expect($period->currentEnd($anchor, CarbonImmutable::parse('2026-03-01 00:00:00'))->toDateTimeString())->toBe('2026-04-30 10:00:00');
 });

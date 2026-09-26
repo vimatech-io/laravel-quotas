@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use VimaTech\LaravelQuotas\Events\UsageLimitReached;
+use VimaTech\LaravelQuotas\Events\UsageReset;
+use VimaTech\LaravelQuotas\Exceptions\BillableNotCashierReadyException;
+use VimaTech\LaravelQuotas\Exceptions\PlanNotFoundException;
 use VimaTech\LaravelQuotas\Exceptions\UsageLimitExceededException;
 use VimaTech\LaravelQuotas\Managers\QuotaManager;
 use VimaTech\LaravelQuotas\Models\Usage;
@@ -30,6 +33,9 @@ final class IncrementUsageAction
      * push usage past the plan limit.
      *
      * @throws UsageLimitExceededException
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
+     * @throws InvalidArgumentException
      */
     public function execute(Model $billable, string $feature, int $amount = 1): void
     {
@@ -50,7 +56,9 @@ final class IncrementUsageAction
 
         $this->ensureUsageRecordExists($billable, $feature, $limit);
 
-        $usage = DB::transaction(function () use ($billable, $feature, $amount, $limit) {
+        $rolledOverFrom = null;
+
+        $usage = DB::transaction(function () use ($billable, $feature, $amount, $limit, &$rolledOverFrom) {
             $usage = Usage::query()
                 ->forBillable($billable)
                 ->forFeature($feature)
@@ -65,6 +73,7 @@ final class IncrementUsageAction
             // Roll the period over inside the lock, so a request landing on the
             // boundary spends the new allowance rather than the old one.
             if ($this->resetter->hasRolledOver($billable, $usage)) {
+                $rolledOverFrom = $usage->used;
                 $usage->used = 0;
                 $usage->reset_at = now();
             }
@@ -81,6 +90,10 @@ final class IncrementUsageAction
 
         $this->cache->forget($billable, $feature);
 
+        if ($rolledOverFrom !== null) {
+            event(new UsageReset($billable, $feature, $rolledOverFrom));
+        }
+
         if ($usage->hasReachedLimit()) {
             event(new UsageLimitReached($billable, $feature, $usage->used, $usage->limit));
         }
@@ -89,8 +102,9 @@ final class IncrementUsageAction
     /**
      * Create the usage row if it is missing, tolerating a concurrent creation.
      *
-     * Relies on the unique index over (billable_type, billable_id, feature) and
-     * runs outside the transaction so a conflict never poisons it.
+     * Relies on the unique index over (billable_type, billable_id, feature).
+     * insertOrIgnore compiles to a statement that skips the conflicting row
+     * instead of raising, so it cannot poison an enclosing transaction either.
      */
     private function ensureUsageRecordExists(Model $billable, string $feature, int $limit): void
     {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace VimaTech\LaravelQuotas\Traits;
 
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use InvalidArgumentException;
 use VimaTech\LaravelQuotas\Actions\CancelSubscriptionAction;
 use VimaTech\LaravelQuotas\Actions\ChangePlanAction;
 use VimaTech\LaravelQuotas\Actions\CreateSubscriptionAction;
@@ -12,7 +13,9 @@ use VimaTech\LaravelQuotas\Actions\IncrementUsageAction;
 use VimaTech\LaravelQuotas\Actions\ResumeSubscriptionAction;
 use VimaTech\LaravelQuotas\Enums\BillingInterval;
 use VimaTech\LaravelQuotas\Exceptions\AlreadySubscribedException;
+use VimaTech\LaravelQuotas\Exceptions\BillableNotCashierReadyException;
 use VimaTech\LaravelQuotas\Exceptions\LocalSubscriptionsDisabledException;
+use VimaTech\LaravelQuotas\Exceptions\PlanNotFoundException;
 use VimaTech\LaravelQuotas\Exceptions\SubscriptionNotCancelledException;
 use VimaTech\LaravelQuotas\Exceptions\UsageLimitExceededException;
 use VimaTech\LaravelQuotas\Managers\PlanManager;
@@ -111,6 +114,9 @@ trait HasQuotas
 
     /**
      * The plan currently backing this billable, wherever its subscription lives.
+     *
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
      */
     public function currentPlan(): ?Plan
     {
@@ -120,7 +126,7 @@ trait HasQuotas
     /**
      * The local subscription record, when there is one.
      *
-     * Returns null under a Cashier-backed resolver — ask Cashier instead.
+     * Returns null under a Cashier-backed resolver. Ask Cashier instead.
      */
     public function currentSubscription(): ?Subscription
     {
@@ -134,7 +140,7 @@ trait HasQuotas
 
     public function isSubscribedTo(string $planSlug): bool
     {
-        return $this->currentPlan()?->slug === $planSlug;
+        return $this->isSubscribed() && $this->currentPlan()?->slug === $planSlug;
     }
 
     public function onTrial(): bool
@@ -144,6 +150,9 @@ trait HasQuotas
 
     /**
      * Whether the current plan grants a feature at all.
+     *
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
      */
     public function hasFeature(string $feature): bool
     {
@@ -152,12 +161,21 @@ trait HasQuotas
 
     /**
      * Whether the feature is granted and its allowance is not spent.
+     *
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
+     * @throws InvalidArgumentException
      */
     public function canUse(string $feature): bool
     {
         return app(QuotaManager::class)->canUse($this, $feature);
     }
 
+    /**
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
+     * @throws InvalidArgumentException
+     */
     public function hasReachedLimit(string $feature): bool
     {
         return app(QuotaManager::class)->hasReachedLimit($this, $feature);
@@ -167,6 +185,9 @@ trait HasQuotas
      * Consume quota for a feature.
      *
      * @throws UsageLimitExceededException
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
+     * @throws InvalidArgumentException
      */
     public function incrementUsage(string $feature, int $amount = 1): void
     {
@@ -191,6 +212,10 @@ trait HasQuotas
 
     /**
      * How much of a feature is left, or null when it has no ceiling.
+     *
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
+     * @throws InvalidArgumentException
      */
     public function remainingUsage(string $feature): ?int
     {
@@ -199,6 +224,9 @@ trait HasQuotas
 
     /**
      * Whether a feature is granted without a ceiling.
+     *
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
      */
     public function hasUnlimited(string $feature): bool
     {

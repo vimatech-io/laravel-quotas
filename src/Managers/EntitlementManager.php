@@ -6,6 +6,7 @@ namespace VimaTech\LaravelQuotas\Managers;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 use VimaTech\LaravelQuotas\Actions\CancelSubscriptionAction;
 use VimaTech\LaravelQuotas\Actions\ChangePlanAction;
 use VimaTech\LaravelQuotas\Actions\CreateSubscriptionAction;
@@ -13,7 +14,9 @@ use VimaTech\LaravelQuotas\Actions\IncrementUsageAction;
 use VimaTech\LaravelQuotas\Actions\ResumeSubscriptionAction;
 use VimaTech\LaravelQuotas\Enums\BillingInterval;
 use VimaTech\LaravelQuotas\Exceptions\AlreadySubscribedException;
+use VimaTech\LaravelQuotas\Exceptions\BillableNotCashierReadyException;
 use VimaTech\LaravelQuotas\Exceptions\LocalSubscriptionsDisabledException;
+use VimaTech\LaravelQuotas\Exceptions\PlanNotFoundException;
 use VimaTech\LaravelQuotas\Exceptions\SubscriptionNotCancelledException;
 use VimaTech\LaravelQuotas\Exceptions\UsageLimitExceededException;
 use VimaTech\LaravelQuotas\Models\Plan;
@@ -47,6 +50,9 @@ final class EntitlementManager
 
     /**
      * The plan currently backing a billable, wherever its subscription lives.
+     *
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
      */
     public function currentPlan(Model $billable): ?Plan
     {
@@ -111,6 +117,11 @@ final class EntitlementManager
         return app(ResumeSubscriptionAction::class)->execute($subscription);
     }
 
+    /**
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
+     * @throws InvalidArgumentException
+     */
     public function canUse(Model $billable, string $feature): bool
     {
         return $this->quotaManager->canUse($billable, $feature);
@@ -118,6 +129,9 @@ final class EntitlementManager
 
     /**
      * @throws UsageLimitExceededException
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
+     * @throws InvalidArgumentException
      */
     public function increment(Model $billable, string $feature, int $amount = 1): void
     {
@@ -126,6 +140,10 @@ final class EntitlementManager
 
     /**
      * How much of a feature is left, or null when it has no ceiling.
+     *
+     * @throws PlanNotFoundException
+     * @throws BillableNotCashierReadyException
+     * @throws InvalidArgumentException
      */
     public function remaining(Model $billable, string $feature): ?int
     {

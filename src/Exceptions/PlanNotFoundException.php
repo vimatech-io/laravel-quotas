@@ -19,6 +19,14 @@ final class PlanNotFoundException extends QuotasException
         );
     }
 
+    public static function defaultPlan(string $slug): self
+    {
+        return new self(
+            "The default plan [{$slug}] set in quotas.subscriptions.default_plan does not exist. "
+            .'Create a plan with that slug, or set the option to null to leave billables without a subscription planless.'
+        );
+    }
+
     public static function withId(int $id): self
     {
         return new self("Plan with ID [{$id}] not found.");

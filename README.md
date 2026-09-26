@@ -90,6 +90,24 @@ class User extends Authenticatable
 You may also point `resolver` at your own class implementing
 `SubscriptionResolverInterface`.
 
+#### A plan for billables with no subscription
+
+```php
+// config/quotas.php
+'subscriptions' => [
+    'default_plan' => env('QUOTAS_DEFAULT_PLAN', 'free'),
+],
+```
+
+`default_plan` is the slug of the plan a billable holds while it has no
+subscription, for a free tier. It applies under every resolver, custom ones
+included. `isSubscribed()` stays `false` for such a billable: it holds the
+default plan, it is not subscribed to it. A billable whose subscription maps to
+no plan at all (a `gateway_prices` entry that does not exist) does not fall back
+to the default plan either, so a pricing mistake never hides behind free
+access. A slug that matches no plan throws `PlanNotFoundException`. Leave it
+unset and a billable with no subscription simply has no plan.
+
 #### How the Cashier resolvers work, and what they never do
 
 This package **never talks to Stripe or Paddle** and needs none of their API
@@ -251,6 +269,33 @@ from the invoice date permanently.
 
 `manual` never rolls over on its own: you call `$user->resetUsage('feature')`.
 
+A feature can also renew on the calendar instead of the subscription's
+anniversary, whoever holds the subscription:
+
+```php
+'quotas' => [
+    // Invoice issuing renews on the 1st of the month, in the application
+    // timezone, even for a billable whose subscription anniversary falls on
+    // a different day:
+    'feature_anchors' => ['invoice_issuing' => 'calendar'],
+],
+```
+
+A feature absent from `feature_anchors` keeps following the subscription. An
+unknown anchor value throws `InvalidArgumentException`.
+
+### Knowing when the allowance comes back
+
+```php
+use VimaTech\LaravelQuotas\Managers\QuotaManager;
+
+app(QuotaManager::class)->periodEndsAt($user, 'executions'); // CarbonImmutable|null
+```
+
+`periodEndsAt()` reports the instant a feature's allowance is next due to reset,
+respecting both `feature_intervals` and `feature_anchors`. It is `null` on the
+`manual` interval, since nothing there rolls over on its own.
+
 ## Standing limits: counting things that exist, not things consumed
 
 Not every number in a pricing grid is a consumable. "2 000 AI tokens a month"
@@ -386,6 +431,7 @@ See `config/quotas.php`. The keys that matter most:
 'subscriptions' => [
     'resolver' => env('QUOTAS_RESOLVER', 'local'),
     'cashier_type' => env('QUOTAS_CASHIER_TYPE', 'default'),
+    'default_plan' => env('QUOTAS_DEFAULT_PLAN'),
 ],
 
 'quotas' => [
@@ -405,8 +451,10 @@ See `config/quotas.php`. The keys that matter most:
 ],
 ```
 
-Writes invalidate a cached counter immediately. The TTL only bounds how long a
-counter changed *outside* this package can look stale.
+A write invalidates the cached counter once its transaction commits, and
+nothing is cached from inside a transaction in the first place, so a rollback
+can never leave a stale count behind. The TTL only bounds how long a counter
+changed *outside* this package can look stale.
 
 ## Testing
 

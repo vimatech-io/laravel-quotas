@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-09-26
+
+### Added
+
+- `quotas.quotas.feature_anchors`: a feature set to `calendar` renews at the start of the calendar period (the 1st of the month for `monthly`) in the application timezone, even for billables whose subscription has another anniversary. Features not listed keep the subscription anniversary. An unknown value throws `InvalidArgumentException`.
+- `quotas.subscriptions.default_plan` (`QUOTAS_DEFAULT_PLAN`): the slug of the plan a billable holds while it has no subscription, for a free tier. It applies under every resolver, custom ones included. `isSubscribed()` stays false for such a billable, and a billable whose subscription maps to no plan does not receive it, so a missing `gateway_prices` entry is not hidden behind the free tier. A slug matching no plan throws `PlanNotFoundException`. Unset, nothing changes.
+- `QuotaManager::periodEndsAt(Model $billable, string $feature): ?CarbonImmutable`, the instant the allowance of a feature comes back for a billable. Null on the `manual` interval.
+
+### Fixed
+
+- A usage count read inside a database transaction was cached for every process. When the transaction rolled back, the cache kept reporting the uncommitted count until the TTL expired. Counts are no longer cached from inside a transaction, and invalidations wait for the commit, so another process cannot re-cache the old count in between.
+- `UsageLimitReached` and `UsageReset` implement `ShouldDispatchAfterCommit`. An increment rolled back by an enclosing transaction no longer announces a limit that was never reached.
+- A counter rolled over by `incrementUsage()` now dispatches `UsageReset`, as the read path already did.
+- A cached count could outlive the period it was counted in by up to the cache TTL, so `canUse()` kept refusing for up to a minute after the allowance came back. Cached counts now expire at the end of their period.
+- The subscription anchor memoised by the reset logic was not cleared by `forgetPlan()` or at the end of the request. A worker that had measured a period from one billing cycle kept measuring from it after the cycle moved.
+- A custom resolver composing `CashierStripeResolver` or `CashierPaddleResolver` through the container received the `default` Cashier subscription type instead of `quotas.subscriptions.cashier_type`.
+- `isSubscribedTo()` requires a subscription, so it does not report a billable on the default plan as subscribed to it.
+- `IncrementUsageAction::execute()`, `incrementUsage()` and `EntitlementManager::increment()` declared only `UsageLimitExceededException`, so static analysis reported a `catch` of `PlanNotFoundException`, `BillableNotCashierReadyException` or `InvalidArgumentException` around them as dead code, although each can be thrown. Their `@throws` now list all four, and `currentPlan()`, `hasFeature()`, `canUse()`, `hasReachedLimit()`, `remaining()`, `remainingUsage()`, `isUnlimited()`, `hasUnlimited()` and `EnsureFeatureIsAvailable` declare the ones they can raise. The lists cover this package's exceptions: database errors and exceptions thrown by a custom resolver are not listed.
+- `Plan::$monthly_price` was declared `int`, although the column is nullable and `PlanData` leaves it `null` by default. Static analysis therefore reported a `null` check on a plan without a monthly price as always true. It is now declared `int|null`, like `yearly_price`.
+
+### Changed
+
+- `QuotaManager` takes a `PlanManager` as a fourth constructor argument. Code resolving it from the container is unaffected.
+
 ## [1.2.0] - 2026-09-01
 
 ### Added
