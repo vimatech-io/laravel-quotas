@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace VimaTech\LaravelQuotas\Quota;
 
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use InvalidArgumentException;
 use VimaTech\LaravelQuotas\Enums\PeriodAnchor;
 
@@ -175,7 +176,7 @@ final class QuotaPeriod
     {
         return match ($this->interval) {
             self::DAILY => $now->startOfDay(),
-            self::WEEKLY => $now->startOfWeek(),
+            self::WEEKLY => $now->startOfWeek(CarbonInterface::MONDAY),
             self::YEARLY => $now->startOfYear(),
             default => $now->startOfMonth(),
         };

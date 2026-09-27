@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.0] - 2026-09-26
+## [1.3.0] - 2026-09-27
 
 ### Added
 
@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A `weekly` period measured on the calendar (a feature anchored to it, or a billable without a subscription) started on the first day of the week of the current Carbon locale, so two requests in different locales could disagree on the period and grant the allowance twice in one week. Calendar weeks now start on Monday.
 - A usage count read inside a database transaction was cached for every process. When the transaction rolled back, the cache kept reporting the uncommitted count until the TTL expired. Counts are no longer cached from inside a transaction, and invalidations wait for the commit, so another process cannot re-cache the old count in between.
 - `UsageLimitReached` and `UsageReset` implement `ShouldDispatchAfterCommit`. An increment rolled back by an enclosing transaction no longer announces a limit that was never reached.
 - A counter rolled over by `incrementUsage()` now dispatches `UsageReset`, as the read path already did.
@@ -28,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `QuotaManager` takes a `PlanManager` as a fourth constructor argument. Code resolving it from the container is unaffected.
+- `UsageLimitReached` and `UsageReset` are dispatched after the outermost transaction commits, and not at all if it rolls back. A listener that ran inside the caller's transaction now runs after the commit, and an exception it throws surfaces from `DB::transaction()` once the usage is already committed.
 
 ## [1.2.0] - 2026-09-01
 
