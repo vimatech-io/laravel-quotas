@@ -456,6 +456,10 @@ nothing is cached from inside a transaction in the first place, so a rollback
 can never leave a stale count behind. The TTL only bounds how long a counter
 changed *outside* this package can look stale.
 
+An application that wraps every request in a transaction, or a test suite
+using `RefreshDatabase`, therefore reads every counter from the database: the
+cache only serves reads made outside a transaction.
+
 ## Testing
 
 ```bash
