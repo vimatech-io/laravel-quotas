@@ -26,8 +26,8 @@ beforeEach(function () {
     app(PlanManager::class)->create(new PlanData(
         name: 'Free',
         slug: 'free',
-        features: ['invoice_issuing'],
-        limits: ['invoice_issuing' => 5],
+        features: ['executions'],
+        limits: ['executions' => 5],
         sortOrder: 0,
     ));
 
@@ -35,8 +35,8 @@ beforeEach(function () {
         name: 'Pro',
         slug: 'pro',
         monthlyPrice: 1900,
-        features: ['invoice_issuing'],
-        limits: ['invoice_issuing' => Usage::UNLIMITED],
+        features: ['executions'],
+        limits: ['executions' => Usage::UNLIMITED],
         gatewayPrices: ['paddle' => ['pri_pro']],
         sortOrder: 1,
     ));
@@ -57,13 +57,13 @@ function paddleUser(?string $price = null, string $email = 'ada@example.test'): 
 it('gives a billable without a subscription the default plan', function () {
     $user = paddleUser();
 
-    $user->incrementUsage('invoice_issuing', 5);
+    $user->incrementUsage('executions', 5);
 
     expect($user->currentPlan()?->slug)->toBe('free')
         ->and($user->isSubscribed())->toBeFalse()
         ->and($user->isSubscribedTo('free'))->toBeFalse()
-        ->and($user->canUse('invoice_issuing'))->toBeFalse()
-        ->and(fn () => $user->incrementUsage('invoice_issuing'))->toThrow(UsageLimitExceededException::class);
+        ->and($user->canUse('executions'))->toBeFalse()
+        ->and(fn () => $user->incrementUsage('executions'))->toThrow(UsageLimitExceededException::class);
 });
 
 it('prefers the plan a subscription resolves to', function () {
@@ -75,28 +75,28 @@ it('does not hand the default plan to a subscriber whose price maps to no plan',
 
     expect($user->isSubscribed())->toBeTrue()
         ->and($user->currentPlan())->toBeNull()
-        ->and($user->canUse('invoice_issuing'))->toBeFalse();
+        ->and($user->canUse('executions'))->toBeFalse();
 });
 
 it('refuses a default plan that does not exist', function () {
     config()->set('quotas.subscriptions.default_plan', 'fre');
 
-    paddleUser()->canUse('invoice_issuing');
+    paddleUser()->canUse('executions');
 })->throws(PlanNotFoundException::class, 'The default plan [fre] set in quotas.subscriptions.default_plan does not exist.');
 
 it('lets a missing default plan escape an increment, where a consumer can catch it', function () {
     config()->set('quotas.subscriptions.default_plan', 'fre');
     $catcher = app(DeclaredExceptionCatcher::class);
 
-    expect($catcher->increment(paddleUser(), 'invoice_issuing'))->toBeInstanceOf(PlanNotFoundException::class)
-        ->and($catcher->incrementUsage(paddleUser(email: 'b@example.test'), 'invoice_issuing'))->toBeInstanceOf(PlanNotFoundException::class)
+    expect($catcher->increment(paddleUser(), 'executions'))->toBeInstanceOf(PlanNotFoundException::class)
+        ->and($catcher->incrementUsage(paddleUser(email: 'b@example.test'), 'executions'))->toBeInstanceOf(PlanNotFoundException::class)
         ->and(Usage::query()->count())->toBe(0);
 });
 
 it('lets a billable Cashier cannot read escape a feature check', function () {
     $user = User::query()->create(['name' => 'Ada', 'email' => 'ada@example.test']);
 
-    expect(app(DeclaredExceptionCatcher::class)->canUse($user, 'invoice_issuing'))
+    expect(app(DeclaredExceptionCatcher::class)->canUse($user, 'executions'))
         ->toBeInstanceOf(BillableNotCashierReadyException::class);
 });
 
@@ -124,22 +124,22 @@ it('reads the configured Cashier subscription type from a Cashier resolver a cus
 
 it('counts per team while the owners hold the subscriptions', function () {
     config()->set('quotas.subscriptions.resolver', TeamOwnersResolver::class);
-    config()->set('quotas.quotas.feature_anchors', ['invoice_issuing' => 'calendar']);
+    config()->set('quotas.quotas.feature_anchors', ['executions' => 'calendar']);
 
     $team = Team::query()->create(['name' => 'Acme']);
     $team->owners = [paddleUser(email: 'a@example.test'), paddleUser(email: 'b@example.test')];
 
-    $team->incrementUsage('invoice_issuing', 5);
+    $team->incrementUsage('executions', 5);
 
     expect($team->currentPlan()?->slug)->toBe('free')
-        ->and($team->canUse('invoice_issuing'))->toBeFalse()
-        ->and(app(QuotaManager::class)->periodEndsAt($team, 'invoice_issuing')?->day)->toBe(1);
+        ->and($team->canUse('executions'))->toBeFalse()
+        ->and(app(QuotaManager::class)->periodEndsAt($team, 'executions')?->day)->toBe(1);
 
     $team->owners[1]->fakeSubscription = new FakeCashierSubscription(['created_at' => now()]);
     $team->owners[1]->fakeSubscription->setAttribute('items', [(object) ['price_id' => 'pri_pro']]);
     app(QuotaManager::class)->forgetPlan($team);
 
     expect($team->currentPlan()?->slug)->toBe('pro')
-        ->and($team->canUse('invoice_issuing'))->toBeTrue()
+        ->and($team->canUse('executions'))->toBeTrue()
         ->and(Usage::query()->where('billable_type', $team->getMorphClass())->value('used'))->toBe(5);
 });

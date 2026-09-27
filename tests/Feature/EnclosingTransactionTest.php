@@ -21,8 +21,8 @@ beforeEach(function () {
     app(PlanManager::class)->create(new PlanData(
         name: 'Free',
         slug: 'free',
-        features: ['invoice_issuing'],
-        limits: ['invoice_issuing' => 2],
+        features: ['executions'],
+        limits: ['executions' => 2],
     ));
 
     config()->set('quotas.subscriptions.default_plan', 'free');
@@ -30,67 +30,67 @@ beforeEach(function () {
     $this->user = User::query()->create(['name' => 'Ada', 'email' => 'ada@example.test']);
 });
 
-function issueInvoice(User $user, callable $afterIncrement): void
+function recordExecution(User $user, callable $afterIncrement): void
 {
     DB::transaction(function () use ($user, $afterIncrement): void {
-        app(IncrementUsageAction::class)->execute($user, 'invoice_issuing');
+        app(IncrementUsageAction::class)->execute($user, 'executions');
         $afterIncrement();
     });
 }
 
 it('gives the unit back when the enclosing transaction rolls back', function () {
-    $this->user->incrementUsage('invoice_issuing');
+    $this->user->incrementUsage('executions');
 
-    expect(fn () => issueInvoice($this->user, fn () => throw new RuntimeException('numbering failed')))
+    expect(fn () => recordExecution($this->user, fn () => throw new RuntimeException('downstream write failed')))
         ->toThrow(RuntimeException::class);
 
-    expect(Usage::query()->forBillable($this->user)->forFeature('invoice_issuing')->value('used'))->toBe(1)
-        ->and($this->user->usageOf('invoice_issuing'))->toBe(1);
+    expect(Usage::query()->forBillable($this->user)->forFeature('executions')->value('used'))->toBe(1)
+        ->and($this->user->usageOf('executions'))->toBe(1);
 });
 
 it('rolls back the counter row it created for a first use', function () {
-    expect(fn () => issueInvoice($this->user, fn () => throw new RuntimeException('numbering failed')))
+    expect(fn () => recordExecution($this->user, fn () => throw new RuntimeException('downstream write failed')))
         ->toThrow(RuntimeException::class);
 
-    expect(Usage::query()->forBillable($this->user)->forFeature('invoice_issuing')->exists())->toBeFalse();
+    expect(Usage::query()->forBillable($this->user)->forFeature('executions')->exists())->toBeFalse();
 
-    issueInvoice($this->user, fn () => null);
+    recordExecution($this->user, fn () => null);
 
-    expect($this->user->usageOf('invoice_issuing'))->toBe(1);
+    expect($this->user->usageOf('executions'))->toBe(1);
 });
 
 it('does not cache a count read before the enclosing transaction rolled back', function () {
-    expect(fn () => issueInvoice($this->user, function (): void {
-        expect($this->user->remainingUsage('invoice_issuing'))->toBe(1);
+    expect(fn () => recordExecution($this->user, function (): void {
+        expect($this->user->remainingUsage('executions'))->toBe(1);
 
-        throw new RuntimeException('numbering failed');
+        throw new RuntimeException('downstream write failed');
     }))->toThrow(RuntimeException::class);
 
-    expect($this->user->remainingUsage('invoice_issuing'))->toBe(2)
-        ->and($this->user->canUse('invoice_issuing'))->toBeTrue();
+    expect($this->user->remainingUsage('executions'))->toBe(2)
+        ->and($this->user->canUse('executions'))->toBeTrue();
 });
 
 it('invalidates the cached count when the enclosing transaction commits', function () {
-    $this->user->incrementUsage('invoice_issuing');
+    $this->user->incrementUsage('executions');
 
-    issueInvoice($this->user, function (): void {
+    recordExecution($this->user, function (): void {
         // another process reads the committed count while this one is still open
-        Cache::put(app(UsageCache::class)->key($this->user, 'invoice_issuing'), 1, 60);
+        Cache::put(app(UsageCache::class)->key($this->user, 'executions'), 1, 60);
     });
 
-    expect($this->user->usageOf('invoice_issuing'))->toBe(2);
+    expect($this->user->usageOf('executions'))->toBe(2);
 });
 
 it('announces a reached limit only once the enclosing transaction commits', function () {
     Event::fake([UsageLimitReached::class]);
-    $this->user->incrementUsage('invoice_issuing');
+    $this->user->incrementUsage('executions');
 
-    expect(fn () => issueInvoice($this->user, fn () => throw new RuntimeException('numbering failed')))
+    expect(fn () => recordExecution($this->user, fn () => throw new RuntimeException('downstream write failed')))
         ->toThrow(RuntimeException::class);
 
     Event::assertNotDispatched(UsageLimitReached::class);
 
-    issueInvoice($this->user, fn () => null);
+    recordExecution($this->user, fn () => null);
 
     Event::assertDispatched(UsageLimitReached::class);
 });
@@ -108,7 +108,7 @@ it('survives a counter row created concurrently between the check and the insert
         DB::table('quota_usages')->insert([
             'billable_type' => $this->user->getMorphClass(),
             'billable_id' => $this->user->getKey(),
-            'feature' => 'invoice_issuing',
+            'feature' => 'executions',
             'used' => 1,
             'limit' => 2,
             'reset_at' => now(),
@@ -117,22 +117,22 @@ it('survives a counter row created concurrently between the check and the insert
         ]);
     });
 
-    issueInvoice($this->user, fn () => DB::table('users')->update(['name' => 'Ada Lovelace']));
+    recordExecution($this->user, fn () => DB::table('users')->update(['name' => 'Ada Lovelace']));
 
     expect($raced)->toBeTrue()
-        ->and($this->user->usageOf('invoice_issuing'))->toBe(2)
+        ->and($this->user->usageOf('executions'))->toBe(2)
         ->and(DB::table('users')->value('name'))->toBe('Ada Lovelace')
-        ->and(fn () => issueInvoice($this->user, fn () => null))->toThrow(UsageLimitExceededException::class);
+        ->and(fn () => recordExecution($this->user, fn () => null))->toThrow(UsageLimitExceededException::class);
 });
 
 it('announces a rollover spent through the write path', function () {
     $this->travelTo('2026-01-20 09:00:00');
-    $this->user->incrementUsage('invoice_issuing', 2);
+    $this->user->incrementUsage('executions', 2);
 
     Event::fake([UsageReset::class]);
 
     $this->travelTo('2026-02-01 00:00:00');
-    $this->user->incrementUsage('invoice_issuing');
+    $this->user->incrementUsage('executions');
 
     Event::assertDispatched(UsageReset::class, fn (UsageReset $event): bool => $event->previousUsage === 2);
 });

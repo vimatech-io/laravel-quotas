@@ -88,7 +88,7 @@ return [
         | the allowance comes back on the 1st of the month (or the start of the
         | day, week or year) in the application timezone:
         |
-        |     'feature_anchors' => ['invoice_issuing' => 'calendar'],
+        |     'feature_anchors' => ['executions' => 'calendar'],
         |
         | A feature not named here is anchored to the subscription. An unknown
         | value throws.
