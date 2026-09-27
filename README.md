@@ -274,10 +274,10 @@ anniversary, whoever holds the subscription:
 
 ```php
 'quotas' => [
-    // Invoice issuing renews on the 1st of the month, in the application
+    // Executions renew on the 1st of the month, in the application
     // timezone, even for a billable whose subscription anniversary falls on
     // a different day:
-    'feature_anchors' => ['invoice_issuing' => 'calendar'],
+    'feature_anchors' => ['executions' => 'calendar'],
 ],
 ```
 
