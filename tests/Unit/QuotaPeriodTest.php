@@ -162,3 +162,12 @@ it('ends a future anchored period one interval after it starts', function () {
 
     expect($period->currentEnd($anchor, CarbonImmutable::parse('2026-03-01 00:00:00'))->toDateTimeString())->toBe('2026-04-30 10:00:00');
 });
+
+it('starts a calendar week on Monday whatever the locale', function () {
+    $period = new QuotaPeriod(QuotaPeriod::WEEKLY, PeriodAnchor::Calendar);
+    $sunday = CarbonImmutable::parse('2026-09-27 12:00:00');
+
+    foreach (['en', 'en_US', 'ar'] as $locale) {
+        expect($period->currentStart(null, $sunday->locale($locale))->toDateTimeString())->toBe('2026-09-21 00:00:00');
+    }
+});
