@@ -6,6 +6,7 @@ namespace VimaTech\LaravelQuotas\Quota;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use VimaTech\LaravelQuotas\Contracts\SubscriptionResolverInterface;
 use VimaTech\LaravelQuotas\Events\UsageReset;
 use VimaTech\LaravelQuotas\Models\Usage;
@@ -44,11 +45,34 @@ final class UsageResetter
             return false;
         }
 
-        $previous = $usage->used;
+        // The row was read without a lock, so an increment may have rolled it
+        // over since. Decide again on the locked row, as the increment does,
+        // or its usage is overwritten with zero.
+        $previous = DB::transaction(function () use ($billable, $usage): ?int {
+            $locked = Usage::query()->lockForUpdate()->find($usage->getKey());
 
-        $usage->used = 0;
-        $usage->reset_at = now();
-        $usage->save();
+            if ($locked === null) {
+                return null;
+            }
+
+            $usage->setRawAttributes($locked->getAttributes(), true);
+
+            if (! $this->hasRolledOver($billable, $usage)) {
+                return null;
+            }
+
+            $previous = $usage->used;
+
+            $usage->used = 0;
+            $usage->reset_at = now();
+            $usage->save();
+
+            return $previous;
+        });
+
+        if ($previous === null) {
+            return false;
+        }
 
         $this->cache->forget($billable, $usage->feature);
 

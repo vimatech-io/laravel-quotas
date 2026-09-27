@@ -7,6 +7,7 @@ use VimaTech\LaravelQuotas\DTOs\PlanData;
 use VimaTech\LaravelQuotas\Events\UsageReset;
 use VimaTech\LaravelQuotas\Managers\PlanManager;
 use VimaTech\LaravelQuotas\Models\Usage;
+use VimaTech\LaravelQuotas\Quota\UsageResetter;
 use VimaTech\LaravelQuotas\Tests\Fixtures\User;
 
 beforeEach(function () {
@@ -147,4 +148,22 @@ it('resets a weekly feature while its monthly neighbour keeps counting', functio
     expect($user->usageOf('ai_tokens'))->toBe(0)
         ->and($user->remainingUsage('ai_tokens'))->toBe(2000)
         ->and($user->usageOf('exports'))->toBe(4);
+});
+
+it('does not wipe an increment that rolled the counter over after the sweep loaded it', function () {
+    $this->travelTo('2026-01-20 09:00:00');
+    $this->user->subscribe('pro');
+    $this->user->incrementUsage('executions', 3);
+
+    $this->travelTo('2026-02-20 10:00:00');
+    $loadedBySweep = Usage::query()->forBillable($this->user)->forFeature('executions')->firstOrFail();
+
+    Event::fake([UsageReset::class]);
+    $this->user->incrementUsage('executions');
+
+    expect(app(UsageResetter::class)->resetIfRolledOver($this->user, $loadedBySweep))->toBeFalse()
+        ->and($loadedBySweep->used)->toBe(1)
+        ->and($this->user->usageOf('executions'))->toBe(1);
+
+    Event::assertDispatchedTimes(UsageReset::class, 1);
 });

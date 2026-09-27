@@ -136,3 +136,20 @@ it('announces a rollover spent through the write path', function () {
 
     Event::assertDispatched(UsageReset::class, fn (UsageReset $event): bool => $event->previousUsage === 2);
 });
+
+it('announces a rollover only once the enclosing transaction commits', function () {
+    $this->travelTo('2026-01-20 09:00:00');
+    $this->user->incrementUsage('executions', 2);
+
+    Event::fake([UsageReset::class]);
+    $this->travelTo('2026-02-01 00:00:00');
+
+    expect(fn () => recordExecution($this->user, fn () => throw new RuntimeException('downstream write failed')))
+        ->toThrow(RuntimeException::class);
+
+    Event::assertNotDispatched(UsageReset::class);
+
+    recordExecution($this->user, fn () => null);
+
+    Event::assertDispatched(UsageReset::class);
+});
