@@ -18,7 +18,7 @@ use VimaTech\LaravelQuotas\Models\Subscription;
  * and cancelling subscriptions is Cashier's job.
  *
  * Satisfied by the HasQuotas trait. Type-hint it when your code genuinely
- * manages local subscriptions — a portal, an admin screen — and check
+ * manages local subscriptions (a portal, an admin screen) and check
  * quotas.subscriptions.resolver before calling.
  */
 interface ManagesLocalSubscription

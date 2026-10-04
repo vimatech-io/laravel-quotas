@@ -49,7 +49,7 @@ final class PlanManager
      *
      * Kept apart from findBySlug() on purpose: reading a plan and selling one
      * are different questions. A subscriber grandfathered onto a retired plan
-     * must keep resolving it, so findBySlug() stays permissive — but nothing
+     * must keep resolving it, so findBySlug() stays permissive, but nothing
      * should be able to subscribe to a plan you have taken off the catalogue,
      * least of all a slug posted to the portal.
      *
@@ -87,7 +87,7 @@ final class PlanManager
      *
      * Matching happens in PHP rather than through a JSON query: plan catalogues
      * are small and this keeps the lookup portable across every database
-     * Laravel supports. Soft-deleted plans are included on purpose — someone
+     * Laravel supports. Soft-deleted plans are included on purpose: someone
      * still subscribed to a retired plan must keep the entitlements they paid
      * for until their subscription actually ends.
      *

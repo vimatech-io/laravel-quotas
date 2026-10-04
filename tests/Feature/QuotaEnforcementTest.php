@@ -56,7 +56,7 @@ it('enforces the limit against the database, not the cached counter', function (
     expect($quota->getUsage($this->user, 'executions'))->toBe(0);
 
     // Another process consumes the whole quota. The cache is now stale for up
-    // to the configured TTL — enforcement must not trust it.
+    // to the configured TTL, so enforcement must not trust it.
     ($this->usage)('executions')->forceFill(['used' => 5])->save();
 
     expect($quota->getUsage($this->user, 'executions'))->toBe(0);

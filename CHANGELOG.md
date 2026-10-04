@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- The message of `LocalSubscriptionsDisabledException` changes its punctuation: the dash before "this package only reads the result" is now a colon. The exception class and when it is thrown are unchanged; only code comparing the exact message text is affected.
+- The author email in `composer.json` is now `hello@adelzemzemi.com`.
+
+### Fixed
+
+- The `Quotas` facade no longer declares a `swap()` method. `Quotas::swap()` always resolved to Laravel's own `Facade::swap()`, which returns null, leaves the plan unchanged and replaces the facade root with the argument. To change plans, call `swapPlan()` on the billable or `app(EntitlementManager::class)->swap()`.
+
 ## [1.3.1] - 2026-09-27
 
 ### Fixed
@@ -21,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- A `weekly` period measured on the calendar (a feature anchored to it, or a billable without a subscription) started on the first day of the week of the current Carbon locale, so two requests in different locales could disagree on the period and grant the allowance twice in one week. Calendar weeks now start on Monday.
+- **Behaviour change.** A `weekly` period measured on the calendar (a feature anchored to it, or a billable without a subscription) started on the first day of the week of the current Carbon locale, so two requests in different locales could disagree on the period and grant the allowance twice in one week. Calendar weeks now start on Monday. If your application relied on a Sunday or other locale-dependent week start, quota periods measured on the calendar now begin on Monday.
 - A usage count read inside a database transaction was cached for every process. When the transaction rolled back, the cache kept reporting the uncommitted count until the TTL expired. Counts are no longer cached from inside a transaction, and invalidations wait for the commit, so another process cannot re-cache the old count in between.
 - `UsageLimitReached` and `UsageReset` implement `ShouldDispatchAfterCommit`. An increment rolled back by an enclosing transaction no longer announces a limit that was never reached.
 - A counter rolled over by `incrementUsage()` now dispatches `UsageReset`, as the read path already did.
@@ -35,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `QuotaManager` takes a `PlanManager` as a fourth constructor argument. Code resolving it from the container is unaffected.
-- `UsageLimitReached` and `UsageReset` are dispatched after the outermost transaction commits, and not at all if it rolls back. A listener that ran inside the caller's transaction now runs after the commit, and an exception it throws surfaces from `DB::transaction()` once the usage is already committed.
+- **Behaviour change.** `UsageLimitReached` and `UsageReset` are dispatched after the outermost transaction commits, and not at all if it rolls back. A listener that ran inside the caller's transaction now runs after the commit, and an exception it throws surfaces from `DB::transaction()` once the usage is already committed. If a listener depends on running before the commit, or on rolling back the caller's transaction by throwing, move that work into the transaction yourself.
 
 ## [1.2.0] - 2026-09-01
 
@@ -45,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Memoised entitlements and the plan catalogue are cleared when the application terminates instead of relying on `scoped()` bindings being dropped between requests. Laravel clears scoped bindings in one place only — between queue jobs — so under a worker loop written without Octane the managers outlived the request that built them. A subscription cancelled between two requests was still reported as active, and a gateway price added after a worker had loaded the catalogue could not be resolved.
+- Memoised entitlements and the plan catalogue are cleared when the application terminates instead of relying on `scoped()` bindings being dropped between requests. Laravel clears scoped bindings in one place only (between queue jobs), so under a worker loop written without Octane the managers outlived the request that built them. A subscription cancelled between two requests was still reported as active, and a gateway price added after a worker had loaded the catalogue could not be resolved.
 
 ### Changed
 
@@ -58,8 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `LocalSubscriptionSource`, a marker interface a custom resolver declares when
-  the local subscriptions table is one of its sources. Local writes —
-  `subscribe()`, `swapPlan()`, `cancelSubscription()` — are authorised by the
+  the local subscriptions table is one of its sources. Local writes
+  (`subscribe()`, `swapPlan()`, `cancelSubscription()`) are authorised by the
   marker rather than by the shipped local resolver's concrete class, so a
   composite resolver (Paddle plus AppSumo-lifetime redemptions, Stripe plus
   manually granted tenants) can serve two subscription sources in one
@@ -68,19 +79,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2026-08-21
 
 First release. Feature entitlements and usage quotas for Laravel SaaS
-applications — this package does not charge anyone; it reads whichever system
+applications. This package does not charge anyone: it reads whichever system
 owns the subscription and enforces the plan's features and quotas against it.
 
 ### Entitlements
 
 - `SubscriptionResolverInterface` decides where entitlements come from, with
-  three shipped implementations — `local`, `cashier-stripe`, `cashier-paddle` —
+  three shipped implementations (`local`, `cashier-stripe`, `cashier-paddle`),
   plus support for naming your own. Cashier is read through duck typing and is
   never a hard dependency.
 - A plan catalogue (`quota_plans`) carrying features, limits, prices and a
   `gateway_prices` map, so a monthly and a yearly provider price resolve to the
   same plan.
-- `HasQuotas` trait for any Eloquent model — billables are polymorphic, several
+- `HasQuotas` trait for any Eloquent model: billables are polymorphic, several
   types can coexist. Two contracts split its surface: `QuotaAware` (read side,
   identical under every resolver) and `ManagesLocalSubscription` (write side,
   local resolver only).
@@ -90,7 +101,7 @@ owns the subscription and enforces the plan's features and quotas against it.
 ### Usage quotas
 
 - Counters enforced atomically against the locked database row, never against
-  a cached value — concurrent requests cannot pass the check together and
+  a cached value: concurrent requests cannot pass the check together and
   overshoot a limit.
 - Quota periods measured from the subscription's billing anniversary, with
   no-overflow clamping for anniversaries that land past the end of a shorter
@@ -98,8 +109,8 @@ owns the subscription and enforces the plan's features and quotas against it.
   unknown value throws rather than being silently reinterpreted.
 - Per-feature reset intervals (`quotas.quotas.feature_intervals`), so one
   feature can come back weekly while the rest stay monthly.
-- Resets happen lazily on every read and increment — correctness never depends
-  on the scheduler — plus a daily `quotas:reset` sweep so untouched counters
+- Resets happen lazily on every read and increment, so correctness never depends
+  on the scheduler, plus a daily `quotas:reset` sweep so untouched counters
   and dashboards stay fresh.
 - Short-lived counter cache with immediate invalidation on write, and a
   configurable prefix for applications sharing a cache store.
@@ -119,7 +130,7 @@ owns the subscription and enforces the plan's features and quotas against it.
   (`quotas.subscriptions.past_due_grace_days`).
 - Writes to the local table throw `LocalSubscriptionsDisabledException` under a
   Cashier resolver, where creating and cancelling subscriptions is Cashier's
-  job — a local subscription nobody pays for is exactly the failure mode this
+  job: a local subscription nobody pays for is exactly the failure mode this
   package exists to prevent.
 
 ### Route protection
@@ -127,7 +138,7 @@ owns the subscription and enforces the plan's features and quotas against it.
 - `EnsureSubscriptionIsActive` and `EnsureFeatureIsAvailable:feature`
   middlewares, sharing one memoised subscription resolution per request.
 - Three distinct refusals: `401` unauthenticated, `403` when the plan does not
-  grant the feature, `402` when the allowance is spent — with an optional
+  grant the feature, `402` when the allowance is spent, with an optional
   browser redirect to `quotas.middleware.upgrade_route`.
 
 ### Events and exceptions
@@ -136,3 +147,10 @@ owns the subscription and enforces the plan's features and quotas against it.
   `SubscriptionCancelled`, `PlanChanged`.
 - Every exception extends `QuotasException`, so one catch handles anything
   quota-related.
+
+[Unreleased]: https://github.com/vimatech-io/laravel-quotas/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/vimatech-io/laravel-quotas/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/vimatech-io/laravel-quotas/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/vimatech-io/laravel-quotas/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/vimatech-io/laravel-quotas/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/vimatech-io/laravel-quotas/releases/tag/v1.0.0

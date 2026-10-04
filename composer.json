@@ -16,10 +16,15 @@
     "authors": [
         {
             "name": "Adel Zemzemi",
-            "email": "adel@vimatech.io"
+            "email": "hello@adelzemzemi.com"
         }
     ],
     "homepage": "https://github.com/vimatech-io/laravel-quotas",
+    "support": {
+        "issues": "https://github.com/vimatech-io/laravel-quotas/issues",
+        "source": "https://github.com/vimatech-io/laravel-quotas",
+        "security": "https://github.com/vimatech-io/laravel-quotas/blob/main/SECURITY.md"
+    },
     "require": {
         "php": "^8.3",
         "illuminate/cache": "^12.0|^13.0",

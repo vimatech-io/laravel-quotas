@@ -35,7 +35,7 @@ interface SubscriptionResolverInterface
     public function onTrial(Model $billable): bool;
 
     /**
-     * The billing anniversary quota periods are measured from — normally the
+     * The billing anniversary quota periods are measured from, normally the
      * moment the subscription started.
      *
      * Returning null means there is no anchor to work from, and periods fall

@@ -13,7 +13,7 @@ use VimaTech\LaravelQuotas\Exceptions\LocalSubscriptionsDisabledException;
  * subscription.
  *
  * Without this, `$user->subscribe('pro')` against a Cashier-backed setup would
- * quietly hand out a plan nobody is paying for — the exact failure mode this
+ * quietly hand out a plan nobody is paying for, the exact failure mode this
  * package exists to avoid. Better a loud exception at the call site.
  */
 final class LocalSubscriptionGuard

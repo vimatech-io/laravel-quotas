@@ -346,11 +346,14 @@ have taken off the catalogue must not stay purchasable by slug. Plans already
 subscribed to keep resolving after they are retired, so nobody loses what they
 bought.
 
-These write to the local table, so they throw
-`LocalSubscriptionsDisabledException` under a Cashier resolver, where creating
-and cancelling subscriptions is Cashier's job, not this package's. That refusal
-is deliberate: a local "subscription" nobody is paying for is exactly the bug
-this design exists to prevent.
+Under a Cashier resolver, `subscribe()` throws
+`LocalSubscriptionsDisabledException`: creating and cancelling subscriptions is
+Cashier's job there, not this package's. That refusal is deliberate: a local
+"subscription" nobody is paying for is exactly the bug this design exists to
+prevent. `cancelSubscription()` and `swapPlan()` look up the local subscription
+first, and that table is empty under Cashier, so they throw
+`NoActiveSubscriptionException`; `resumeSubscription()` throws
+`SubscriptionNotCancelledException` for the same reason.
 
 ## Events
 
@@ -364,6 +367,39 @@ this design exists to prevent.
 
 The last three fire for the `local` resolver only. Under Cashier, listen to
 Cashier's own webhook events.
+
+## The `Quotas` facade
+
+The same operations are available without a billable model, through the `Quotas`
+facade (`VimaTech\LaravelQuotas\Facades\Quotas`, registered as the `Quotas`
+alias by package discovery):
+
+```php
+use VimaTech\LaravelQuotas\Enums\BillingInterval;
+use VimaTech\LaravelQuotas\Facades\Quotas;
+
+Quotas::plans();                                  // Collection of active plans
+Quotas::plan('pro');                              // Plan, by slug
+Quotas::currentPlan($user);                       // Plan|null
+
+Quotas::canUse($user, 'executions');              // bool
+Quotas::increment($user, 'executions', 5);        // throws UsageLimitExceededException
+Quotas::remaining($user, 'executions');           // int|null, null when unlimited
+
+Quotas::subscribe($user, 'pro', BillingInterval::Yearly);
+Quotas::cancel($user, immediately: true);
+Quotas::resume($user);
+```
+
+`subscribe`, `cancel` and `resume` write to the local subscriptions table. Under
+a Cashier resolver `subscribe` throws `LocalSubscriptionsDisabledException`,
+`cancel` throws `NoActiveSubscriptionException` and `resume` throws
+`SubscriptionNotCancelledException`. The facade cannot change a plan: `swap` is
+shadowed by Laravel's own `Facade::swap()`, which replaces the facade's
+instance instead. Call `swapPlan()` on the billable, or
+`app(\VimaTech\LaravelQuotas\Managers\EntitlementManager::class)->swap($user, 'business')`.
+`planManager()`, `quotaManager()` and `subscriptionManager()` return the
+underlying managers.
 
 ## Type-hinting a billable
 
