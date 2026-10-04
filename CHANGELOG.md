@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-10-05
+
 ### Changed
 
 - The message of `LocalSubscriptionsDisabledException` changes its punctuation: the dash before "this package only reads the result" is now a colon. The exception class and when it is thrown are unchanged; only code comparing the exact message text is affected.
@@ -148,7 +150,8 @@ owns the subscription and enforces the plan's features and quotas against it.
 - Every exception extends `QuotasException`, so one catch handles anything
   quota-related.
 
-[Unreleased]: https://github.com/vimatech-io/laravel-quotas/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/vimatech-io/laravel-quotas/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/vimatech-io/laravel-quotas/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/vimatech-io/laravel-quotas/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/vimatech-io/laravel-quotas/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/vimatech-io/laravel-quotas/compare/v1.1.0...v1.2.0
