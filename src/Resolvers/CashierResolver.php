@@ -81,7 +81,7 @@ abstract class CashierResolver implements SubscriptionResolverInterface
      * The current billing period start is the right answer whenever the
      * provider reports one: it is the date the customer is actually charged
      * on. Creation date only coincides with it until something moves the
-     * billing cycle — a plan change with proration resets the period at the
+     * billing cycle: a plan change with proration resets the period at the
      * provider while created_at stays where it was, and from then on the quota
      * would come back on a different day from the invoice, permanently.
      *

@@ -42,7 +42,7 @@ final class CreateSubscriptionAction
             // package can reason about: findActive() would pick one arbitrarily
             // and the other would go on granting features nobody tracks. A
             // double-clicked form is enough to produce it, so refuse rather
-            // than absorb it — checked inside the transaction to keep the
+            // than absorb it. The check runs inside the transaction to keep the
             // window between check and insert as small as it can be without a
             // database constraint.
             if ($existing = $this->subscriptions->findActive($billable)) {
@@ -79,8 +79,8 @@ final class CreateSubscriptionAction
      * A plan's own trial wins; the configured default applies to plans that
      * name none.
      *
-     * The column is not nullable and defaults to 0, so `??` never fires on it —
-     * the fallback has to be driven by the value, not by its presence.
+     * The column is not nullable and defaults to 0, so `??` never fires on it,
+     * so the fallback has to be driven by the value, not by its presence.
      */
     private function trialDaysFor(Plan $plan): int
     {

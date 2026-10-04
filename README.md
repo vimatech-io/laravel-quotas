@@ -365,6 +365,35 @@ this design exists to prevent.
 The last three fire for the `local` resolver only. Under Cashier, listen to
 Cashier's own webhook events.
 
+## The `Quotas` facade
+
+The same operations are available without a billable model, through the `Quotas`
+facade (`VimaTech\LaravelQuotas\Facades\Quotas`, registered as the `Quotas`
+alias by package discovery):
+
+```php
+use VimaTech\LaravelQuotas\Enums\BillingInterval;
+use VimaTech\LaravelQuotas\Facades\Quotas;
+
+Quotas::plans();                                  // Collection of active plans
+Quotas::plan('pro');                              // Plan, by slug
+Quotas::currentPlan($user);                       // Plan|null
+
+Quotas::canUse($user, 'executions');              // bool
+Quotas::increment($user, 'executions', 5);        // throws UsageLimitExceededException
+Quotas::remaining($user, 'executions');           // int|null, null when unlimited
+
+Quotas::subscribe($user, 'pro', BillingInterval::Yearly);
+Quotas::swap($user, 'business');
+Quotas::cancel($user, immediately: true);
+Quotas::resume($user);
+```
+
+`subscribe`, `swap`, `cancel` and `resume` write to the local subscriptions table
+and throw `LocalSubscriptionsDisabledException` under a Cashier resolver.
+`planManager()`, `quotaManager()` and `subscriptionManager()` return the
+underlying managers.
+
 ## Type-hinting a billable
 
 Two interfaces describe what the trait adds, so your own code can be explicit

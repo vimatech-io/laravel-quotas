@@ -83,7 +83,7 @@ class Subscription extends Model
      * This is the PHP twin of scopeActive(), and the two must always agree:
      * the resolver reaches entitlements through the scope, so a subscription
      * the scope accepts but this method rejects would hand out access nobody
-     * is entitled to — and the other way round would revoke access someone
+     * is entitled to, and the other way round would revoke access someone
      * paid for. Both are stated once, here and in the scope, against the same
      * four rules.
      */

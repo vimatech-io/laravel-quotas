@@ -161,7 +161,7 @@ it('revokes the counters of features a downgrade drops', function () {
 
 it('refuses to sell a deactivated plan', function () {
     // The bug: findBySlug() ignored is_active, so a retired plan stayed
-    // subscribable by slug — including through the portal's public route.
+    // subscribable by slug, including through the portal's public route.
     Plan::query()->create(['name' => 'Retired', 'slug' => 'retired', 'is_active' => false, 'features' => ['a'], 'limits' => ['a' => 5]]);
     $user = regressionUser();
 
@@ -242,7 +242,7 @@ it('cuts a past due subscription off once the grace period lapses', function () 
 
 it('throws a package exception when there is nothing to resume', function () {
     // firstOrFail() used to leak a ModelNotFoundException here, which most
-    // handlers render as a 404 — nonsense for a billing action.
+    // handlers render as a 404, which is nonsense for a billing action.
     Plan::query()->create(['name' => 'Pro', 'slug' => 'pro', 'features' => ['a'], 'limits' => ['a' => 5]]);
     $user = regressionUser();
 

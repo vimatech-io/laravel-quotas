@@ -88,8 +88,8 @@ class Plan extends Model
     /**
      * The provider price identifiers this plan is sold under.
      *
-     * A plan usually has more than one — a monthly price and a yearly one both
-     * grant the same features — so the value is normalised to a list whether it
+     * A plan usually has more than one (a monthly price and a yearly one both
+     * grant the same features), so the value is normalised to a list whether it
      * was stored as a single string or an array.
      *
      * @return array<int, string>

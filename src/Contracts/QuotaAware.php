@@ -39,7 +39,7 @@ interface QuotaAware
 
     /**
      * Writes to the usage counter, not to the subscription, so it is available
-     * under every resolver — unlike the lifecycle methods.
+     * under every resolver, unlike the lifecycle methods.
      */
     public function resetUsage(string $feature): void;
 }
