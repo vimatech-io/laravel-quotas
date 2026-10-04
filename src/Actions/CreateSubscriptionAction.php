@@ -77,10 +77,9 @@ final class CreateSubscriptionAction
 
     /**
      * A plan's own trial wins; the configured default applies to plans that
-     * name none.
-     *
-     * The column is not nullable and defaults to 0, so `??` never fires on it,
-     * so the fallback has to be driven by the value, not by its presence.
+     * name none. The column is not nullable and defaults to 0, so a plan
+     * without a trial holds 0 rather than null: the fallback tests the value,
+     * not its presence.
      */
     private function trialDaysFor(Plan $plan): int
     {

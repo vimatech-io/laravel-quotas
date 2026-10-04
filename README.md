@@ -346,11 +346,14 @@ have taken off the catalogue must not stay purchasable by slug. Plans already
 subscribed to keep resolving after they are retired, so nobody loses what they
 bought.
 
-These write to the local table, so they throw
-`LocalSubscriptionsDisabledException` under a Cashier resolver, where creating
-and cancelling subscriptions is Cashier's job, not this package's. That refusal
-is deliberate: a local "subscription" nobody is paying for is exactly the bug
-this design exists to prevent.
+Under a Cashier resolver, `subscribe()` throws
+`LocalSubscriptionsDisabledException`: creating and cancelling subscriptions is
+Cashier's job there, not this package's. That refusal is deliberate: a local
+"subscription" nobody is paying for is exactly the bug this design exists to
+prevent. `cancelSubscription()` and `swapPlan()` look up the local subscription
+first, and that table is empty under Cashier, so they throw
+`NoActiveSubscriptionException`; `resumeSubscription()` throws
+`SubscriptionNotCancelledException` for the same reason.
 
 ## Events
 
@@ -384,13 +387,17 @@ Quotas::increment($user, 'executions', 5);        // throws UsageLimitExceededEx
 Quotas::remaining($user, 'executions');           // int|null, null when unlimited
 
 Quotas::subscribe($user, 'pro', BillingInterval::Yearly);
-Quotas::swap($user, 'business');
 Quotas::cancel($user, immediately: true);
 Quotas::resume($user);
 ```
 
-`subscribe`, `swap`, `cancel` and `resume` write to the local subscriptions table
-and throw `LocalSubscriptionsDisabledException` under a Cashier resolver.
+`subscribe`, `cancel` and `resume` write to the local subscriptions table. Under
+a Cashier resolver `subscribe` throws `LocalSubscriptionsDisabledException`,
+`cancel` throws `NoActiveSubscriptionException` and `resume` throws
+`SubscriptionNotCancelledException`. The facade cannot change a plan: `swap` is
+shadowed by Laravel's own `Facade::swap()`, which replaces the facade's
+instance instead. Call `swapPlan()` on the billable, or
+`app(\VimaTech\LaravelQuotas\Managers\EntitlementManager::class)->swap($user, 'business')`.
 `planManager()`, `quotaManager()` and `subscriptionManager()` return the
 underlying managers.
 

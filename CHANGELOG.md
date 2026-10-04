@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The message of `LocalSubscriptionsDisabledException` changes its punctuation: the dash before "this package only reads the result" is now a colon. The exception class and when it is thrown are unchanged; only code comparing the exact message text is affected.
+- The author email in `composer.json` is now `hello@adelzemzemi.com`.
+
 ## [1.3.1] - 2026-09-27
 
 ### Fixed
