@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The message of `LocalSubscriptionsDisabledException` changes its punctuation: the dash before "this package only reads the result" is now a colon. The exception class and when it is thrown are unchanged; only code comparing the exact message text is affected.
 - The author email in `composer.json` is now `hello@adelzemzemi.com`.
 
+### Fixed
+
+- The `Quotas` facade no longer declares a `swap()` method. `Quotas::swap()` always resolved to Laravel's own `Facade::swap()`, which returns null, leaves the plan unchanged and replaces the facade root with the argument. To change plans, call `swapPlan()` on the billable or `app(EntitlementManager::class)->swap()`.
+
 ## [1.3.1] - 2026-09-27
 
 ### Fixed
